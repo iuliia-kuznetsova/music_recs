@@ -44,9 +44,10 @@ def load_env_with_logging():
     return True
 
 # ---------- Dwnload datasets ---------- #
-def download_file(url: str, save_path: str):
+def download_file(url: str, save_path: str) -> bool:
     '''
-        Download a file from URL and save it locally
+    Download a file from URL and save it locally.
+    Returns True on success, False on failure.
     '''
 
     # Make directory if not yet exists 
@@ -59,14 +60,23 @@ def download_file(url: str, save_path: str):
         response.raise_for_status()
     except Exception as e:
         logger.error(f'Failed to download {url} with exception {e}')
-        raise
+        return False
 
     # Save dataset locally
-    with open(save_path, 'wb') as f:
-        f.write(response.content)
-    logger.info(f'Dataframe saved from {save_path}')
+    try:
+        with open(save_path, 'wb') as f:
+            f.write(response.content)
+        logger.info(f'Dataframe saved to {save_path}')
+        return True
+    except Exception as e:
+        logger.error(f'Failed to save {save_path}: {e}')
+        return False
 
-def download_all_raw():
+def download_all_raw() -> bool:
+    '''
+    Download all raw datasets.
+    Returns True if all downloads succeed, False otherwise.
+    '''
     raw_dir = os.getenv('RAW_DATA_DIR', './data/raw')
 
     datasets = {
@@ -83,13 +93,19 @@ def download_all_raw():
         success = download_file(url, save_path)
         if not success:
             failed = True
+    
     if failed:
         logger.error('Downloading failed for one or more datasets')
+        return False
     else:
         logger.info('All datasets downloaded successfully')
+        return True
 
-
+# ---------- Main entry point ---------- #
 if __name__ == '__main__':
+    if load_env_with_logging():
+        download_all_raw()
+    else:
+        logger.error('Failed to load environment variables, exiting')
 
-    load_env_with_logging()
-    download_all_raw()
+__all__ = ['load_env_with_logging', 'download_file', 'download_all_raw']
