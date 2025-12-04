@@ -5,7 +5,7 @@ import logging
 import gc
 import requests
 
-from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv
 
 # ---------- Logging setup ---------- #
 logging.basicConfig(
@@ -14,12 +14,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ---------- Load environment vaiables ---------- #
+# ---------- Load environment variables ---------- #
 def load_env_with_logging():
     '''
-        Load .env file and log status info
+        Load .env file from config/ directory and log status info
     '''
-    env_path = find_dotenv()
+    # Load from config/.env (relative to project root)
+    config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
+    env_path = os.path.join(config_dir, '.env')
     required_vars = [
         'RAW_DATA_DIR',
         'RAW_URL_TRACKS',
@@ -30,8 +32,8 @@ def load_env_with_logging():
     logger.info(f'Loading .env: {required_vars} from {env_path}')
 
     # Check if .env exists
-    if not env_path:
-        logger.error('Failed to load environment variables: .env file not found')
+    if not os.path.exists(env_path):
+        logger.error(f'Failed to load environment variables: .env file not found at {env_path}')
         return False
 
     load_dotenv(env_path)

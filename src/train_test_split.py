@@ -1,17 +1,17 @@
 '''
-    Train/Test Data Split (Chronological)
+    Train/Test Data Split
 
     This module provides functionality to split user-item interactions into
     train and test sets based on a chronological date threshold.
 
     Strategy:
-    - Calculate date threshold as quantile of last_listen dates
+    - Calculate date threshold as quantile of last_listen dates if not set in .env file.
     - Train set: all interactions BEFORE the threshold date
     - Test set: all interactions AFTER the threshold date
 
     Input:
     - events.parquet - User-track interaction events
-    - label_encoders.pkl - User and track ID to index mappings (for model training)
+    - ./models/label_encoders.pkl - User and track ID to index mappings (for model training)
 
     Output:
     - train_events.parquet - Training interactions
@@ -19,6 +19,10 @@
     - train_matrix.npz - Training sparse matrix
     - test_matrix.npz - Test sparse matrix
     - split_info.pkl - Split information
+
+    Usage:
+    python -m src.train_test_split --calculate-date-threshold
+    python -m src.train_test_split --run-train-test-split
 '''
 
 # ---------- Imports ---------- #
@@ -34,8 +38,10 @@ import numpy as np
 from scipy.sparse import csr_matrix, save_npz
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# ---------- Load environment variables ---------- #
+# Load from config/.env (relative to project root)
+config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
+load_dotenv(os.path.join(config_dir, '.env'))
 
 # ---------- Logging setup ---------- #
 logging.basicConfig(
@@ -46,16 +52,33 @@ logger = logging.getLogger(__name__)
 
 # ---------- Calculate date threshold ---------- #
 def calculate_date_threshold(preprocessed_dir: str, train_ratio: float = None) -> date:
-    if train_ratio is None:
-        train_ratio = float(os.getenv('TRAIN_RATIO', 0.8))
     '''
         Calculate the date threshold for train/test split.
+        
+        First checks DATE_THRESHOLD env variable.
+        If not set, calculates threshold as quantile of last_listen dates.
     '''
+    
+    # Check if DATE_THRESHOLD is set in environment
+    date_threshold_str = os.getenv('DATE_THRESHOLD')
+    if date_threshold_str:
+        try:
+            # Parse date in DD.MM.YYYY format
+            day, month, year = date_threshold_str.split('.')
+            date_threshold = date(int(year), int(month), int(day))
+            logger.info('Using DATE_THRESHOLD from environment: %s', date_threshold)
+            return date_threshold
+        except (ValueError, AttributeError) as e:
+            logger.warning(f'Invalid DATE_THRESHOLD format: {date_threshold_str}. Expected DD.MM.YYYY. Using quantile method.')
+    
+    # Fall back to quantile-based calculation
+    if train_ratio is None:
+        train_ratio = float(os.getenv('TRAIN_RATIO', 0.8))
 
     logger.info('Loading events from %s', preprocessed_dir)
     events = pl.scan_parquet(f'{preprocessed_dir}/events.parquet')
     
-    logger.info('Calculating date threshold')
+    logger.info('Calculating date threshold using %.0f%% quantile', train_ratio * 100)
     # Convert date to days since epoch, find quantile, convert back
     # Polars cannot directly compute quantile on dates
     date_threshold_days = (
@@ -74,9 +97,8 @@ def calculate_date_threshold(preprocessed_dir: str, train_ratio: float = None) -
     date_threshold = pl.Series([date_threshold_days]).cast(pl.Date).item()
     logger.info('Date threshold calculated: %s', date_threshold)
     
-    # Remove all dataframes from memory
+    # Free up memory
     del (events, date_threshold_days)
-    # Collect garbage
     gc.collect()
 
     return date_threshold
@@ -126,9 +148,8 @@ def split_by_date_threshold(preprocessed_dir: str, date_threshold: date) -> Tupl
     
     del train_collected, test_collected
 
-    # Remove all dataframes from memory
+    # Free up memory
     del (events, train_events, test_events, split_info)
-    # Collect garbage
     gc.collect()
 
     return None
@@ -140,7 +161,8 @@ def create_sparse_matrix(preprocessed_dir: str) -> csr_matrix:
     '''
 
     logger.info('Loading label encoders from %s', preprocessed_dir)
-    with open(f'{preprocessed_dir}/label_encoders.pkl', 'rb') as f:
+    models_dir = os.getenv('MODELS_DIR', './models')
+    with open(f'{models_dir}/label_encoders.pkl', 'rb') as f:
         encoders = pickle.load(f)
 
     user_encoder = encoders['user_encoder']
@@ -216,7 +238,7 @@ def create_sparse_matrix(preprocessed_dir: str) -> csr_matrix:
 
     logger.info('Successfully done with train and test sparse matrix creation')
 
-    # Remove all dataframes from memory
+    # Free up memory
     del (
         n_users, n_tracks,
         train_events, test_events, 
@@ -226,7 +248,6 @@ def create_sparse_matrix(preprocessed_dir: str) -> csr_matrix:
         user_encoder, track_encoder,
         train_matrix, test_matrix
     )
-    # Collect garbage
     gc.collect()
 
     return None
@@ -247,4 +268,5 @@ def run_train_test_split(preprocessed_dir: str):
     
     return None
 
+# ---------- All exports ---------- #
 __all__ = ['run_train_test_split']

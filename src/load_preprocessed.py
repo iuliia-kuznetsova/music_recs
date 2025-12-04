@@ -19,14 +19,19 @@ from typing import Dict, Tuple, Any
 
 import polars as pl
 from scipy.sparse import load_npz, csr_matrix
+from dotenv import load_dotenv
+
+# Load environment variables from config/.env
+config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
+load_dotenv(os.path.join(config_dir, '.env'))
 
 
-def load_encoders(preprocessed_dir: str = 'data/preprocessed') -> Dict[str, Dict[int, int]]:
+def load_encoders(models_dir: str = None) -> Dict[str, Dict[int, int]]:
     '''
     Load label encoders for users and tracks.
     
     Args:
-        preprocessed_dir: Directory containing preprocessed data
+        models_dir: Directory containing model files (default: from MODELS_DIR env or ./models)
         
     Returns:
         Dictionary with keys:
@@ -35,7 +40,10 @@ def load_encoders(preprocessed_dir: str = 'data/preprocessed') -> Dict[str, Dict
         - user_decoder: {user_idx -> user_id}
         - track_decoder: {track_idx -> track_id}
     '''
-    encoders_path = os.path.join(preprocessed_dir, 'label_encoders.pkl')
+    if models_dir is None:
+        models_dir = os.getenv('MODELS_DIR', './models')
+    
+    encoders_path = os.path.join(models_dir, 'label_encoders.pkl')
     
     if not os.path.exists(encoders_path):
         raise FileNotFoundError(

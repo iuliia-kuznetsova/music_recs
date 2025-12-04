@@ -1,483 +1,279 @@
 '''
-Comprehensive Recommendation Evaluation
+Recommendation Model Evaluation
 
 This module provides metrics for evaluating recommendation quality:
-- Precision@K, Recall@K, F1@K
-- Coverage (catalog and user coverage)
-- Novelty (popularity-based)
-- Diversity (using track_group_id)
-- NDCG@K (Normalized Discounted Cumulative Gain)
+- Precision@K - fraction of recommended items that are relevant
+- Recall@K - fraction of relevant items that are recommended
+- NDCG@K - normalized discounted cumulative gain (ranking quality)
+- Novelty - measures how novel/unpopular the recommendations are
+- Diversity - measures variety in recommendations using track_group_id
 
-Results saved as JSON for easy analysis.
+Models: popularity, collaborative (ALS), ranked (CatBoost)
+
+Results are saved to ./results as JSON
+
+Usage:
+    python -m src.rec_evaluation --model popularity
+    python -m src.rec_evaluation --model collaborative
+    python -m src.rec_evaluation --model ranked
+    python -m src.rec_evaluation --model all
 '''
 
+# ---------- Imports ---------- #
 import os
+import gc
 import json
 import logging
-from typing import List, Dict, Tuple, Set, Optional
+from datetime import datetime
+from typing import List, Dict, Set
 from collections import defaultdict
+import argparse
 
 import numpy as np
 import polars as pl
-from scipy.sparse import csr_matrix
+from scipy.sparse import load_npz
+from dotenv import load_dotenv
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] %(message)s',
-)
+from src.rec_ranking import generate_ranked_recommendations
+from src.popularity_based_rec import generate_popularity_recommendations
+from src.collaborative_rec import load_als_model, generate_als_recommendations
+
+# ---------- Load environment variables ---------- #
+config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
+load_dotenv(os.path.join(config_dir, '.env'))
+
+# ---------- Logging setup ---------- #
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-
+# ---------- Recommendation Evaluator ---------- #
 class RecommendationEvaluator:
-    '''
-    Comprehensive recommendation evaluation.
-    '''
+    '''Compute Precision@K, Recall@K, NDCG@K, Novelty, Diversity.'''
     
-    def __init__(
-        self,
-        catalog_df: pl.DataFrame,
-        events_df: pl.DataFrame
-    ):
-        '''
-        Args:
-            catalog_df: Catalog with track metadata
-            events_df: Events with user-track interactions
-        '''
-        self.catalog = catalog_df
-        self.events = events_df
+    def __init__(self, catalog_df: pl.DataFrame, events_df: pl.DataFrame):
+        # Track popularity for novelty
+        track_pop = events_df.group_by('track_id').agg(pl.sum('listen_count').alias('pop'))
+        self.track_pop = dict(zip(track_pop['track_id'].to_list(), track_pop['pop'].to_list()))
+        self.max_pop = max(self.track_pop.values()) if self.track_pop else 1
         
-        # Pre-compute popularity
-        self.track_popularity = (
-            events_df
-            .group_by('track_id')
-            .agg(pl.sum('listen_count').alias('popularity'))
-            .to_dict()
-        )
-        
-        self.track_pop_dict = dict(zip(
-            self.track_popularity['track_id'],
-            self.track_popularity['popularity']
+        # Track groups for diversity
+        self.track_to_group = dict(zip(
+            catalog_df['track_id'].to_list(),
+            catalog_df['track_group_id'].to_list()
         ))
-        
-        # Track to group mapping
-        self.track_to_group = {
-            row['track_id']: row['track_group_id']
-            for row in catalog_df.select(['track_id', 'track_group_id']).iter_rows(named=True)
-        }
-        
-    def precision_at_k(
-        self,
-        recommendations: Dict[int, List[int]],
-        test_items: Dict[int, Set[int]],
-        k: int = 10
-    ) -> float:
-        '''
-        Precision@K: Fraction of recommended items that are relevant.
-        
-        Args:
-            recommendations: Dict mapping user_id to list of recommended track_ids
-            test_items: Dict mapping user_id to set of relevant track_ids
-            k: Number of recommendations to consider
-            
-        Returns:
-            Average precision@K across users
-        '''
-        precisions = []
-        
-        for user_id, rec_list in recommendations.items():
-            if user_id not in test_items:
-                continue
-            
-            relevant = test_items[user_id]
-            recommended = set(rec_list[:k])
-            
-            if len(recommended) > 0:
-                precision = len(recommended & relevant) / k
-                precisions.append(precision)
-        
-        return np.mean(precisions) if precisions else 0.0
     
-    def recall_at_k(
-        self,
-        recommendations: Dict[int, List[int]],
-        test_items: Dict[int, Set[int]],
-        k: int = 10
-    ) -> float:
+    def precision_at_k(self, recs: Dict[int, List[int]], test: Dict[int, Set[int]], k: int) -> float:
         '''
-        Recall@K: Fraction of relevant items that are recommended.
-        
-        Args:
-            recommendations: Dict mapping user_id to list of recommended track_ids
-            test_items: Dict mapping user_id to set of relevant track_ids
-            k: Number of recommendations to consider
-            
-        Returns:
-            Average recall@K across users
+            Precision@K - fraction of recommended items that are relevant.
         '''
-        recalls = []
         
-        for user_id, rec_list in recommendations.items():
-            if user_id not in test_items:
-                continue
-            
-            relevant = test_items[user_id]
-            recommended = set(rec_list[:k])
-            
-            if len(relevant) > 0:
-                recall = len(recommended & relevant) / len(relevant)
-                recalls.append(recall)
+        scores = [len(set(recs[u][:k]) & test[u]) / k for u in recs if u in test and recs[u]]
         
-        return np.mean(recalls) if recalls else 0.0
+        return float(np.mean(scores)) if scores else 0.0
     
-    def f1_at_k(
-        self,
-        recommendations: Dict[int, List[int]],
-        test_items: Dict[int, Set[int]],
-        k: int = 10
-    ) -> float:
+    def recall_at_k(self, recs: Dict[int, List[int]], test: Dict[int, Set[int]], k: int) -> float:
         '''
-        F1@K: Harmonic mean of precision and recall.
+            Recall@K - fraction of relevant items that are recommended.
         '''
-        precision = self.precision_at_k(recommendations, test_items, k)
-        recall = self.recall_at_k(recommendations, test_items, k)
         
-        if precision + recall > 0:
-            f1 = 2 * (precision * recall) / (precision + recall)
-        else:
-            f1 = 0.0
+        scores = [len(set(recs[u][:k]) & test[u]) / len(test[u]) for u in recs if u in test and test[u]]
         
-        return f1
+        return float(np.mean(scores)) if scores else 0.0
     
-    def ndcg_at_k(
-        self,
-        recommendations: Dict[int, List[int]],
-        test_items: Dict[int, Set[int]],
-        k: int = 10
-    ) -> float:
+    def ndcg_at_k(self, recs: Dict[int, List[int]], test: Dict[int, Set[int]], k: int) -> float:
         '''
-        NDCG@K: Normalized Discounted Cumulative Gain.
+            NDCG@K - normalized discounted cumulative gain.
+        '''
         
-        Considers ranking order (higher is better for top positions).
-        '''
         ndcgs = []
-        
-        for user_id, rec_list in recommendations.items():
-            if user_id not in test_items:
+        for u in recs:
+            if u not in test:
                 continue
-            
-            relevant = test_items[user_id]
-            
-            # DCG
-            dcg = 0.0
-            for i, track_id in enumerate(rec_list[:k], 1):
-                if track_id in relevant:
-                    dcg += 1.0 / np.log2(i + 1)
-            
-            # IDCG (ideal DCG)
-            idcg = sum(1.0 / np.log2(i + 2) for i in range(min(len(relevant), k)))
-            
+            rel = test[u]
+            dcg = sum(1.0 / np.log2(i + 2) for i, t in enumerate(recs[u][:k]) if t in rel)
+            idcg = sum(1.0 / np.log2(i + 2) for i in range(min(len(rel), k)))
             if idcg > 0:
-                ndcg = dcg / idcg
-                ndcgs.append(ndcg)
+                ndcgs.append(dcg / idcg)
         
-        return np.mean(ndcgs) if ndcgs else 0.0
+        return float(np.mean(ndcgs)) if ndcgs else 0.0
     
-    def catalog_coverage(
-        self,
-        recommendations: Dict[int, List[int]],
-        k: int = 10
-    ) -> float:
+    def novelty(self, recs: Dict[int, List[int]], k: int) -> float:
         '''
-        Catalog Coverage: Fraction of catalog items that appear in recommendations.
-        
-        Measures how diverse the recommendations are across the catalog.
+            Novelty - measures how novel/unpopular the recommendations are.
         '''
-        recommended_items = set()
         
-        for rec_list in recommendations.values():
-            recommended_items.update(rec_list[:k])
+        scores = [-np.log2(self.track_pop.get(t, 1) / self.max_pop + 1e-10)
+                  for r in recs.values() for t in r[:k]]
         
-        total_items = self.catalog.height
-        coverage = len(recommended_items) / total_items if total_items > 0 else 0.0
-        
-        return coverage
+        return float(np.mean(scores)) if scores else 0.0
     
-    def user_coverage(
-        self,
-        recommendations: Dict[int, List[int]],
-        total_users: int
-    ) -> float:
+    def diversity(self, recs: Dict[int, List[int]], k: int) -> float:
         '''
-        User Coverage: Fraction of users who received recommendations.
+            Diversity - measures variety in recommendations using track_group_id.
         '''
-        return len(recommendations) / total_users if total_users > 0 else 0.0
+        
+        scores = [len({self.track_to_group.get(t, t) for t in r[:k]}) / len(r[:k])
+                  for r in recs.values() if r[:k]]
+        
+        return float(np.mean(scores)) if scores else 0.0
     
-    def novelty(
-        self,
-        recommendations: Dict[int, List[int]],
-        k: int = 10
-    ) -> float:
+    def evaluate(self, recs: Dict[int, List[int]], test: Dict[int, Set[int]], k: int) -> Dict:
         '''
-        Novelty: Average unpopularity of recommended items.
-        
-        Higher novelty means recommending less popular (more novel) items.
-        
-        Novelty = -log2(popularity / max_popularity)
+            Evaluate recommendations and return all metrics.
         '''
-        if not self.track_pop_dict:
-            return 0.0
-        
-        max_pop = max(self.track_pop_dict.values())
-        novelties = []
-        
-        for rec_list in recommendations.values():
-            for track_id in rec_list[:k]:
-                pop = self.track_pop_dict.get(track_id, 1)
-                # Normalized popularity
-                norm_pop = pop / max_pop
-                # Novelty score (higher for less popular items)
-                novelty_score = -np.log2(norm_pop + 1e-10)
-                novelties.append(novelty_score)
-        
-        return np.mean(novelties) if novelties else 0.0
-    
-    def diversity(
-        self,
-        recommendations: Dict[int, List[int]],
-        k: int = 10
-    ) -> float:
-        '''
-        Diversity: Fraction of unique track groups in recommendations.
-        
-        Uses track_group_id to measure if recommendations contain
-        different songs (not just different versions).
-        '''
-        diversities = []
-        
-        for rec_list in recommendations.values():
-            groups = set()
-            for track_id in rec_list[:k]:
-                group_id = self.track_to_group.get(track_id, track_id)
-                groups.add(group_id)
-            
-            # Diversity = unique groups / total recommendations
-            diversity_score = len(groups) / min(len(rec_list), k) if rec_list else 0
-            diversities.append(diversity_score)
-        
-        return np.mean(diversities) if diversities else 0.0
-    
-    def hit_rate_at_k(
-        self,
-        recommendations: Dict[int, List[int]],
-        test_items: Dict[int, Set[int]],
-        k: int = 10
-    ) -> float:
-        '''
-        Hit Rate@K: Fraction of users for whom at least one relevant item was recommended.
-        '''
-        hits = 0
-        total = 0
-        
-        for user_id, rec_list in recommendations.items():
-            if user_id not in test_items:
-                continue
-            
-            relevant = test_items[user_id]
-            recommended = set(rec_list[:k])
-            
-            if len(recommended & relevant) > 0:
-                hits += 1
-            total += 1
-        
-        return hits / total if total > 0 else 0.0
-    
-    def evaluate_all(
-        self,
-        recommendations: Dict[int, List[int]],
-        test_items: Dict[int, Set[int]],
-        total_users: int,
-        k: int = 10
-    ) -> Dict[str, float]:
-        '''
-        Compute all evaluation metrics.
-        
-        Args:
-            recommendations: Dict mapping user_id to list of recommended track_ids
-            test_items: Dict mapping user_id to set of relevant track_ids (from test set)
-            total_users: Total number of users in dataset
-            k: Number of recommendations to evaluate
-            
-        Returns:
-            Dictionary with all metrics
-        '''
-        logger.info(f'Computing all metrics for k={k}')
-        
-        metrics = {
-            f'precision@{k}': self.precision_at_k(recommendations, test_items, k),
-            f'recall@{k}': self.recall_at_k(recommendations, test_items, k),
-            f'f1@{k}': self.f1_at_k(recommendations, test_items, k),
-            f'ndcg@{k}': self.ndcg_at_k(recommendations, test_items, k),
-            f'hit_rate@{k}': self.hit_rate_at_k(recommendations, test_items, k),
-            f'catalog_coverage@{k}': self.catalog_coverage(recommendations, k),
-            'user_coverage': self.user_coverage(recommendations, total_users),
-            f'novelty@{k}': self.novelty(recommendations, k),
-            f'diversity@{k}': self.diversity(recommendations, k),
+        return {
+            f'precision@{k}': self.precision_at_k(recs, test, k),
+            f'recall@{k}': self.recall_at_k(recs, test, k),
+            f'ndcg@{k}': self.ndcg_at_k(recs, test, k),
+            f'novelty@{k}': self.novelty(recs, k),
+            f'diversity@{k}': self.diversity(recs, k),
         }
-        
-        # Add metadata
-        metrics['_metadata'] = {
-            'k': k,
-            'num_users_evaluated': len(recommendations),
-            'total_users': total_users,
-            'num_test_users': len(test_items),
-        }
-        
-        return metrics
 
+# ---------- Recommendation Generators ---------- #
+def get_popularity_recommendations(preprocessed_dir: str, n: int = 100) -> Dict[int, List[int]]:
+    '''
+        Popularity recommendations.
+    '''
 
-def evaluate_recommender(
-    model_name: str,
-    recommendations: Dict[int, List[int]],
-    test_events_df: pl.DataFrame,
-    catalog_df: pl.DataFrame,
-    all_events_df: pl.DataFrame,
-    total_users: int,
-    k_values: List[int] = [5, 10, 20],
-    output_file: Optional[str] = None
-) -> Dict:
-    '''
-    Evaluate a recommender and save results.
+    logger.info('Loading popularity recommendations')
+    results_dir = os.getenv('RESULTS_DIR', './results')
+    popularity_path = f'{results_dir}/top_popular.parquet'
     
-    Args:
-        model_name: Name of the model being evaluated
-        recommendations: User recommendations
-        test_events_df: Test interactions
-        catalog_df: Catalog with metadata
-        all_events_df: All events (for popularity)
-        total_users: Total users in dataset
-        k_values: List of K values to evaluate
-        output_file: Optional JSON file to save results
-        
-    Returns:
-        Evaluation results dictionary
-    '''
-    logger.info('='*60)
-    logger.info(f'EVALUATING: {model_name}')
-    logger.info('='*60)
+    if os.path.exists(popularity_path):
+        popularity_recs = pl.read_parquet(popularity_path)['track_id'].to_list()
+        logger.info(f'Loaded {len(popularity_recs):,} popularity recommendations')
+    else:
+        logger.info('Popularity recommendations not found, generating using popularity model...')
+        popularity_recs = generate_popularity_recommendations(preprocessed_dir, n=n)
+        logger.info(f'Generated {len(popularity_recs):,} popularity recommendations')
     
-    # Build test items set
-    logger.info('Building test items set')
+    return popularity_recs
+
+def get_collaborative_recommendations(preprocessed_dir: str, models_dir: str, n: int = 10) -> Dict[int, List[int]]:
+    '''
+        ALS collaborative filtering recommendations.
+    '''
+    logger.info('Loading ALS recommendations')
+    
+    results_dir = os.getenv('RESULTS_DIR', './results')
+    als_path = f'{results_dir}/personal_als.parquet'
+    
+    if os.path.exists(als_path):
+        df = pl.read_parquet(als_path)
+        als_recs = {u: df.filter(pl.col('user_id') == u).sort('rank')['track_id'].to_list()[:n]
+                for u in df['user_id'].unique().to_list()}
+        logger.info(f'Loaded {len(als_recs):,} ALS recommendations')
+    else:
+        logger.info('ALS recommendations not found, generating using ALS model...')
+        model = load_als_model(f'{models_dir}/als_model.pkl')
+        matrix = load_npz(f'{preprocessed_dir}/train_matrix.npz')
+        users = pl.read_parquet(f'{preprocessed_dir}/test_events.parquet')['user_id'].unique().to_list()
+        als_recs = generate_als_recommendations(model, matrix, users, n=n)
+        logger.info(f'Generated {len(als_recs):,} ALS recommendations')
+    
+    return als_recs
+    
+def get_ranked_recommendations(preprocessed_dir: str, models_dir: str, n: int = 10, sample_users: int = 5000) -> Dict[int, List[int]]:
+    '''
+        Ranked recommendations.
+    '''
+    logger.info('Loading ranked recommendations')
+    results_dir = os.getenv('RESULTS_DIR', './results')
+    ranked_path = f'{results_dir}/ranked.parquet'
+    
+    if os.path.exists(ranked_path):
+        ranked_recs = pl.read_parquet(ranked_path)['track_id'].to_list()
+        logger.info(f'Loaded {len(ranked_recs):,} ranked recommendations')
+    else:
+        logger.info('Ranked recommendations not found, generating using ranked model...')
+        ranked_recs = generate_ranked_recommendations(preprocessed_dir, models_dir, n=n)
+        logger.info(f'Generated {len(ranked_recs):,} ranked recommendations')
+    
+    return ranked_recs
+
+# ---------- Evaluation ---------- #
+def evaluate_model(model_name: str, preprocessed_dir: str, models_dir: str,
+                   k_values: List[int], output_dir: str, sample_users: int = 5000) -> Dict:
+    '''
+        Evaluate a model and save results to JSON.
+    '''
+    logger.info(f'Evaluating {model_name.upper()}')
+    
+    # Load data
+    catalog = pl.read_parquet(f'{preprocessed_dir}/tracks_catalog_clean.parquet')
+    events = pl.read_parquet(f'{preprocessed_dir}/events.parquet')
+    test_events = pl.read_parquet(f'{preprocessed_dir}/test_events.parquet')
+    
+    # Get recommendations
+    if model_name == 'popularity':
+        recs = get_popularity_recommendations(preprocessed_dir)
+    elif model_name == 'collaborative':
+        recs = get_collaborative_recommendations(preprocessed_dir, models_dir)
+    elif model_name == 'ranked':
+        recs = get_ranked_recommendations(preprocessed_dir, sample_users=sample_users)
+    else:
+        logger.error(f'Unknown model: {model_name}')
+        return {}
+    
+    if not recs:
+        logger.error(f'No recommendations found for {model_name}')
+        return {}
+    
+    # Build test set
     test_items = defaultdict(set)
-    
-    for row in test_events_df.iter_rows(named=True):
+    for row in test_events.iter_rows(named=True):
         test_items[row['user_id']].add(row['track_id'])
     
-    logger.info(f'Test set: {len(test_items):,} users, {test_events_df.height:,} interactions')
-    
-    # Create evaluator
-    evaluator = RecommendationEvaluator(catalog_df, all_events_df)
-    
-    # Evaluate for each K
-    results = {
-        'model_name': model_name,
-        'evaluation_date': str(np.datetime64('now')),
-        'metrics_by_k': {}
-    }
+    # Evaluate
+    evaluator = RecommendationEvaluator(catalog, events)
+    results = {'model_name': model_name, 'evaluation_date': datetime.now().isoformat(), 'metrics': {}}
     
     for k in k_values:
-        logger.info(f'\nEvaluating at K={k}')
-        metrics = evaluator.evaluate_all(recommendations, test_items, total_users, k)
-        results['metrics_by_k'][k] = metrics
-        
-        # Log key metrics
-        logger.info(f'  Precision@{k}: {metrics[f"precision@{k}"]:.4f}')
-        logger.info(f'  Recall@{k}: {metrics[f"recall@{k}"]:.4f}')
-        logger.info(f'  NDCG@{k}: {metrics[f"ndcg@{k}"]:.4f}')
-        logger.info(f'  Hit Rate@{k}: {metrics[f"hit_rate@{k}"]:.4f}')
-        logger.info(f'  Coverage@{k}: {metrics[f"catalog_coverage@{k}"]:.4f}')
-        logger.info(f'  Novelty@{k}: {metrics[f"novelty@{k}"]:.4f}')
-        logger.info(f'  Diversity@{k}: {metrics[f"diversity@{k}"]:.4f}')
+        metrics = evaluator.evaluate(recs, test_items, k)
+        results['metrics'][f'k={k}'] = metrics
+        logger.info(f'K={k}: P={metrics[f"precision@{k}"]:.4f} R={metrics[f"recall@{k}"]:.4f} NDCG={metrics[f"ndcg@{k}"]:.4f}')
     
-    # Save results
-    if output_file:
-        logger.info(f'\nSaving results to {output_file}')
-        with open(output_file, 'w') as f:
-            json.dump(results, f, indent=2)
-        logger.info('✅ Results saved')
-    
-    logger.info('='*60)
-    logger.info(f'✅ EVALUATION COMPLETE: {model_name}')
-    logger.info('='*60)
+    # Save locally
+    os.makedirs(output_dir, exist_ok=True)
+    with open(f'{output_dir}/evaluation_{model_name}.json', 'w') as f:
+        json.dump(results, f, indent=2)
+    logger.info(f'Saved to {output_dir}/evaluation_{model_name}.json')
     
     return results
 
 
-def compare_models(
-    results_files: List[str],
-    output_file: Optional[str] = None
-) -> pl.DataFrame:
+def compare_models(output_dir: str) -> None:
     '''
-    Compare multiple model evaluation results.
-    
-    Args:
-        results_files: List of JSON result files
-        output_file: Optional CSV file to save comparison
-        
-    Returns:
-        DataFrame with comparison
+        Compare evaluated models.
     '''
-    logger.info('='*60)
-    logger.info('COMPARING MODELS')
-    logger.info('='*60)
-    
-    all_results = []
-    
-    for file_path in results_files:
-        logger.info(f'Loading {file_path}')
-        with open(file_path) as f:
-            results = json.load(f)
-        
-        model_name = results['model_name']
-        
-        # Extract metrics for each K
-        for k, metrics in results['metrics_by_k'].items():
-            row = {'model': model_name, 'k': k}
-            row.update({
-                key: value for key, value in metrics.items()
-                if not key.startswith('_')
-            })
-            all_results.append(row)
-    
-    # Create DataFrame
-    comparison_df = pl.DataFrame(all_results)
-    
-    # Display
-    logger.info('\nModel Comparison:')
-    print(comparison_df)
-    
-    # Save
-    if output_file:
-        comparison_df.write_csv(output_file)
-        logger.info(f'\n✅ Comparison saved to {output_file}')
-    
-    return comparison_df
+
+    logger.info('Comparing models')
+    for name in ['popularity', 'collaborative', 'ranked']:
+        path = f'{output_dir}/evaluation_{name}.json'
+        if os.path.exists(path):
+            with open(path) as f:
+                data = json.load(f)
+            logger.info(f'{name}: {data["metrics"]}')
 
 
+# ---------- Main entry point ---------- #
 if __name__ == '__main__':
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Evaluate recommender models')
-    parser.add_argument('--model-name', type=str, required=True,
-                        help='Name of the model being evaluated')
-    parser.add_argument('--preprocessed-dir', type=str, default='data/preprocessed',
-                        help='Directory with preprocessed data')
-    parser.add_argument('--k-values', type=int, nargs='+', default=[5, 10, 20],
-                        help='K values to evaluate')
-    parser.add_argument('--output', type=str, default=None,
-                        help='Output JSON file for results')
-    
+        
+    parser = argparse.ArgumentParser(description='Evaluate recommendation models')
+    parser.add_argument('--model', choices=['popularity', 'collaborative', 'ranked', 'all'], default='all')
+    parser.add_argument('--compare', action='store_true')
     args = parser.parse_args()
     
-    logger.info('This script requires recommendations to be generated first.')
-    logger.info('Use evaluate_recommender() function in your code.')
-
+    preprocessed_dir = args.preprocessed_dir or os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+    models_dir = os.getenv('MODELS_DIR', './models')
+    output_dir = os.getenv('RESULTS_DIR', './results')
+    k_values = os.getenv('K_VALUES', 5)
+    sample_users = os.getenv('SAMPLE_USERS', 5000)
+    
+    models = ['popularity', 'collaborative', 'ranked'] if args.model == 'all' else [args.model]
+    
+    for model in models:
+        evaluate_model(model, preprocessed_dir, models_dir, k_values, sample_users)
+    
+    if args.compare or args.model == 'all':
+        compare_models(output_dir)

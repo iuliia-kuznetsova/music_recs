@@ -1,101 +1,59 @@
-{"timestamp": "2025-12-02 13:45:35,006", "module": "__main__", "level": "INFO", "message": "Music recommendation system starting", "version": "1.0", "component": "main"}
-{"timestamp": "2025-12-02 13:45:35,007", "module": "__main__", "level": "INFO", "message": "STEP 1: Loading environment variables"}
-{"timestamp": "2025-12-02 13:45:35,009", "module": "__main__", "level": "INFO", "message": "DONE: loading environment variables completed"}
-{"timestamp": "2025-12-02 13:45:35,009", "module": "__main__", "level": "INFO", "message": "INFO: Raw data directory: data/raw"}
-{"timestamp": "2025-12-02 13:45:35,009", "module": "__main__", "level": "INFO", "message": "INFO: Preprocessed data directory: data/preprocessed"}
-{"timestamp": "2025-12-02 13:45:35,009", "module": "__main__", "level": "INFO", "message": "STEP 2: Skipping raw data download (--skip-download flag)"}
-{"timestamp": "2025-12-02 13:45:35,009", "module": "__main__", "level": "INFO", "message": "DONE: Raw data download completed"}
-{"timestamp": "2025-12-02 13:45:35,009", "module": "__main__", "level": "INFO", "message": "INFO: All raw files present in data/raw"}
-{"timestamp": "2025-12-02 13:45:35,009", "module": "__main__", "level": "ERROR", "message": "ERROR: Preprocessing failed: build_items_df() missing 2 required positional arguments: 'raw_dir' and 'preprocessed_dir'"}
-{"timestamp": "2025-12-02 13:46:03,548", "module": "__main__", "level": "INFO", "message": "Music recommendation system starting", "version": "1.0", "component": "main"}
-{"timestamp": "2025-12-02 13:46:03,550", "module": "__main__", "level": "INFO", "message": "STEP 1: Loading environment variables"}
-{"timestamp": "2025-12-02 13:46:03,552", "module": "__main__", "level": "INFO", "message": "DONE: loading environment variables completed"}
-{"timestamp": "2025-12-02 13:46:03,552", "module": "__main__", "level": "INFO", "message": "INFO: Raw data directory: data/raw"}
-{"timestamp": "2025-12-02 13:46:03,552", "module": "__main__", "level": "INFO", "message": "INFO: Preprocessed data directory: data/preprocessed"}
-{"timestamp": "2025-12-02 13:46:03,552", "module": "__main__", "level": "INFO", "message": "STEP 2: Skipping raw data download (--skip-download flag)"}
-{"timestamp": "2025-12-02 13:46:03,552", "module": "__main__", "level": "INFO", "message": "DONE: Raw data download completed"}
-{"timestamp": "2025-12-02 13:46:03,552", "module": "__main__", "level": "INFO", "message": "INFO: All raw files present in data/raw"}
-{"timestamp": "2025-12-02 13:47:29,883", "module": "__main__", "level": "INFO", "message": "DONE: Preprocessing pipeline completed successfully"}
-{"timestamp": "2025-12-02 13:47:31,154", "module": "__main__", "level": "INFO", "message": "INFO: Items dataframe shape:          (5573200, 9)"}
-{"timestamp": "2025-12-02 13:47:31,155", "module": "__main__", "level": "INFO", "message": "INFO: Tracks catalog dataframe shape: (804861, 6)"}
-{"timestamp": "2025-12-02 13:47:31,155", "module": "__main__", "level": "INFO", "message": "INFO: Events dataframe shape:         (161765787, 4)"}
-{"timestamp": "2025-12-02 13:47:31,155", "module": "__main__", "level": "INFO", "message": "STEP 4: Splitting data into train/test sets"}
-{"timestamp": "2025-12-02 13:47:31,159", "module": "__main__", "level": "ERROR", "message": "ERROR: Splitting data into train/test sets failed: 'LazyFrame' object has no attribute 'item'"}
-{"timestamp": "2025-12-02 13:47:56,491", "module": "__main__", "level": "INFO", "message": "Music recommendation system starting", "version": "1.0", "component": "main"}
-{"timestamp": "2025-12-02 13:47:56,492", "module": "__main__", "level": "INFO", "message": "STEP 1: Loading environment variables"}
-{"timestamp": "2025-12-02 13:47:56,494", "module": "__main__", "level": "INFO", "message": "DONE: loading environment variables completed"}
-{"timestamp": "2025-12-02 13:47:56,494", "module": "__main__", "level": "INFO", "message": "INFO: Raw data directory: data/raw"}
-{"timestamp": "2025-12-02 13:47:56,494", "module": "__main__", "level": "INFO", "message": "INFO: Preprocessed data directory: data/preprocessed"}
-{"timestamp": "2025-12-02 13:47:56,494", "module": "__main__", "level": "INFO", "message": "STEP 2: Skipping raw data download (--skip-download flag)"}
-{"timestamp": "2025-12-02 13:47:56,494", "module": "__main__", "level": "INFO", "message": "DONE: Raw data download completed"}
-{"timestamp": "2025-12-02 13:47:56,494", "module": "__main__", "level": "INFO", "message": "INFO: All raw files present in data/raw"}
-{"timestamp": "2025-12-02 13:49:13,764", "module": "__main__", "level": "INFO", "message": "DONE: Preprocessing pipeline completed successfully"}
-{"timestamp": "2025-12-02 13:49:15,024", "module": "__main__", "level": "INFO", "message": "INFO: Items dataframe shape:          (5572727, 9)"}
-{"timestamp": "2025-12-02 13:49:15,024", "module": "__main__", "level": "INFO", "message": "INFO: Tracks catalog dataframe shape: (804725, 6)"}
-{"timestamp": "2025-12-02 13:49:15,024", "module": "__main__", "level": "INFO", "message": "INFO: Events dataframe shape:         (161870065, 4)"}
-{"timestamp": "2025-12-02 13:49:15,024", "module": "__main__", "level": "INFO", "message": "STEP 4: Splitting data into train/test sets"}
-{"timestamp": "2025-12-02 13:51:49,235", "module": "__main__", "level": "INFO", "message": "INFO: Train events dataframe shape: (130148746, 4)"}
-{"timestamp": "2025-12-02 13:51:49,236", "module": "__main__", "level": "INFO", "message": "INFO: Test events dataframe shape: (31721319, 4)"}
-{"timestamp": "2025-12-02 13:51:49,236", "module": "__main__", "level": "INFO", "message": "INFO: Train matrix shape: (1371777, 804677)"}
-{"timestamp": "2025-12-02 13:51:49,236", "module": "__main__", "level": "INFO", "message": "INFO: Test matrix shape: (1371777, 804677)"}
-{"timestamp": "2025-12-02 13:51:49,236", "module": "__main__", "level": "INFO", "message": "STEP 5: Finding popularity-based recommendations"}
-{"timestamp": "2025-12-02 13:51:54,544", "module": "__main__", "level": "ERROR", "message": "ERROR: Finding popular tracks failed: expected `other` to be a 'DataFrame', not 'LazyFrame'"}
-{"timestamp": "2025-12-02 13:52:22,623", "module": "__main__", "level": "INFO", "message": "Music recommendation system starting", "version": "1.0", "component": "main"}
-{"timestamp": "2025-12-02 13:52:22,624", "module": "__main__", "level": "INFO", "message": "STEP 1: Loading environment variables"}
-{"timestamp": "2025-12-02 13:52:22,626", "module": "__main__", "level": "INFO", "message": "DONE: loading environment variables completed"}
-{"timestamp": "2025-12-02 13:52:22,626", "module": "__main__", "level": "INFO", "message": "INFO: Raw data directory: data/raw"}
-{"timestamp": "2025-12-02 13:52:22,626", "module": "__main__", "level": "INFO", "message": "INFO: Preprocessed data directory: data/preprocessed"}
-{"timestamp": "2025-12-02 13:52:22,626", "module": "__main__", "level": "INFO", "message": "STEP 2: Skipping raw data download (--skip-download flag)"}
-{"timestamp": "2025-12-02 13:52:22,626", "module": "__main__", "level": "INFO", "message": "DONE: Raw data download completed"}
-{"timestamp": "2025-12-02 13:52:22,626", "module": "__main__", "level": "INFO", "message": "INFO: All raw files present in data/raw"}
-{"timestamp": "2025-12-02 13:53:39,407", "module": "__main__", "level": "INFO", "message": "DONE: Preprocessing pipeline completed successfully"}
-{"timestamp": "2025-12-02 13:53:40,624", "module": "__main__", "level": "INFO", "message": "INFO: Items dataframe shape:          (5575567, 9)"}
-{"timestamp": "2025-12-02 13:53:40,625", "module": "__main__", "level": "INFO", "message": "INFO: Tracks catalog dataframe shape: (804509, 6)"}
-{"timestamp": "2025-12-02 13:53:40,625", "module": "__main__", "level": "INFO", "message": "INFO: Events dataframe shape:         (161717127, 4)"}
-{"timestamp": "2025-12-02 13:53:40,625", "module": "__main__", "level": "INFO", "message": "STEP 4: Splitting data into train/test sets"}
-{"timestamp": "2025-12-02 13:56:42,791", "module": "__main__", "level": "INFO", "message": "INFO: Train events dataframe shape: (130044512, 4)"}
-{"timestamp": "2025-12-02 13:56:42,792", "module": "__main__", "level": "INFO", "message": "INFO: Test events dataframe shape: (31672615, 4)"}
-{"timestamp": "2025-12-02 13:56:42,792", "module": "__main__", "level": "INFO", "message": "INFO: Train matrix shape: (1371779, 804460)"}
-{"timestamp": "2025-12-02 13:56:42,792", "module": "__main__", "level": "INFO", "message": "INFO: Test matrix shape: (1371779, 804460)"}
-{"timestamp": "2025-12-02 13:56:42,792", "module": "__main__", "level": "INFO", "message": "STEP 5: Finding popularity-based recommendations"}
-{"timestamp": "2025-12-02 13:56:49,389", "module": "__main__", "level": "INFO", "message": "STEP 6: Training collaborative filtering model"}
-{"timestamp": "2025-12-02 15:25:06,349", "module": "__main__", "level": "INFO", "message": "Music recommendation system starting", "version": "1.0", "component": "main"}
-{"timestamp": "2025-12-02 15:25:06,350", "module": "__main__", "level": "INFO", "message": "STEP 1: Loading environment variables"}
-{"timestamp": "2025-12-02 15:25:06,352", "module": "__main__", "level": "INFO", "message": "DONE: loading environment variables completed"}
-{"timestamp": "2025-12-02 15:25:06,352", "module": "__main__", "level": "INFO", "message": "INFO: Raw data directory: data/raw"}
-{"timestamp": "2025-12-02 15:25:06,352", "module": "__main__", "level": "INFO", "message": "INFO: Preprocessed data directory: data/preprocessed"}
-{"timestamp": "2025-12-02 15:25:06,352", "module": "__main__", "level": "INFO", "message": "STEP 2: Skipping raw data download (--skip-download flag)"}
-{"timestamp": "2025-12-02 15:25:06,352", "module": "__main__", "level": "INFO", "message": "DONE: Raw data download completed"}
-{"timestamp": "2025-12-02 15:25:06,352", "module": "__main__", "level": "INFO", "message": "INFO: All raw files present in data/raw"}
-{"timestamp": "2025-12-02 15:26:25,580", "module": "__main__", "level": "INFO", "message": "DONE: Preprocessing pipeline completed successfully"}
-{"timestamp": "2025-12-02 15:26:26,728", "module": "__main__", "level": "INFO", "message": "INFO: Items dataframe shape:          (5575699, 9)"}
-{"timestamp": "2025-12-02 15:26:26,728", "module": "__main__", "level": "INFO", "message": "INFO: Tracks catalog dataframe shape: (804685, 6)"}
-{"timestamp": "2025-12-02 15:26:26,729", "module": "__main__", "level": "INFO", "message": "INFO: Events dataframe shape:         (161758440, 4)"}
-{"timestamp": "2025-12-02 15:26:26,729", "module": "__main__", "level": "INFO", "message": "STEP 4: Splitting data into train/test sets"}
-{"timestamp": "2025-12-02 15:28:55,199", "module": "__main__", "level": "INFO", "message": "INFO: Train events dataframe shape: (130034453, 4)"}
-{"timestamp": "2025-12-02 15:28:55,199", "module": "__main__", "level": "INFO", "message": "INFO: Test events dataframe shape: (31723987, 4)"}
-{"timestamp": "2025-12-02 15:28:55,200", "module": "__main__", "level": "INFO", "message": "INFO: Train matrix shape: (1371762, 804636)"}
-{"timestamp": "2025-12-02 15:28:55,200", "module": "__main__", "level": "INFO", "message": "INFO: Test matrix shape: (1371762, 804636)"}
-{"timestamp": "2025-12-02 15:28:55,200", "module": "__main__", "level": "INFO", "message": "STEP 5: Finding popularity-based recommendations"}
-{"timestamp": "2025-12-02 15:29:00,108", "module": "__main__", "level": "INFO", "message": "STEP 6: Training collaborative filtering model"}
-{"timestamp": "2025-12-02 15:35:48,043", "module": "__main__", "level": "ERROR", "message": "ERROR: Training collaborative filtering model failed: index 997246 is out of bounds for axis 0 with size 804636"}
-{"timestamp": "2025-12-02 15:38:55,464", "module": "__main__", "level": "INFO", "message": "Music recommendation system starting", "version": "1.0", "component": "main"}
-{"timestamp": "2025-12-02 15:38:55,467", "module": "__main__", "level": "INFO", "message": "STEP 1: Loading environment variables"}
-{"timestamp": "2025-12-02 15:38:55,468", "module": "__main__", "level": "INFO", "message": "DONE: loading environment variables completed"}
-{"timestamp": "2025-12-02 15:38:55,468", "module": "__main__", "level": "INFO", "message": "INFO: Raw data directory: data/raw"}
-{"timestamp": "2025-12-02 15:38:55,469", "module": "__main__", "level": "INFO", "message": "INFO: Preprocessed data directory: data/preprocessed"}
-{"timestamp": "2025-12-02 15:38:55,469", "module": "__main__", "level": "INFO", "message": "STEP 2: Skipping raw data download (--skip-download flag)"}
-{"timestamp": "2025-12-02 15:38:55,469", "module": "__main__", "level": "INFO", "message": "DONE: Raw data download completed"}
-{"timestamp": "2025-12-02 15:38:55,469", "module": "__main__", "level": "INFO", "message": "INFO: All raw files present in data/raw"}
-{"timestamp": "2025-12-02 15:40:08,830", "module": "__main__", "level": "INFO", "message": "DONE: Preprocessing pipeline completed successfully"}
-{"timestamp": "2025-12-02 15:40:09,956", "module": "__main__", "level": "INFO", "message": "INFO: Items dataframe shape:          (5574179, 9)"}
-{"timestamp": "2025-12-02 15:40:09,956", "module": "__main__", "level": "INFO", "message": "INFO: Tracks catalog dataframe shape: (804784, 6)"}
-{"timestamp": "2025-12-02 15:40:09,957", "module": "__main__", "level": "INFO", "message": "INFO: Events dataframe shape:         (161776606, 4)"}
-{"timestamp": "2025-12-02 15:40:09,957", "module": "__main__", "level": "INFO", "message": "STEP 4: Splitting data into train/test sets"}
-{"timestamp": "2025-12-02 15:42:38,122", "module": "__main__", "level": "INFO", "message": "INFO: Train events dataframe shape: (130063700, 4)"}
-{"timestamp": "2025-12-02 15:42:38,123", "module": "__main__", "level": "INFO", "message": "INFO: Test events dataframe shape: (31712906, 4)"}
-{"timestamp": "2025-12-02 15:42:38,123", "module": "__main__", "level": "INFO", "message": "INFO: Train matrix shape: (1371763, 804736)"}
-{"timestamp": "2025-12-02 15:42:38,123", "module": "__main__", "level": "INFO", "message": "INFO: Test matrix shape: (1371763, 804736)"}
-{"timestamp": "2025-12-02 15:42:38,123", "module": "__main__", "level": "INFO", "message": "STEP 5: Finding popularity-based recommendations"}
-{"timestamp": "2025-12-02 15:42:43,058", "module": "__main__", "level": "INFO", "message": "STEP 6: Training collaborative filtering model"}
-{"timestamp": "2025-12-02 15:52:17,366", "module": "__main__", "level": "INFO", "message": "STEP 7: Building similar tracks index"}
+{"timestamp": "2025-12-04 12:05:06,903", "module": "__main__", "level": "INFO", "message": "Music recommendation system starting", "version": "1.0", "component": "main"}
+{"timestamp": "2025-12-04 12:05:06,904", "module": "__main__", "level": "INFO", "message": "STEP 1: Loading environment variables"}
+{"timestamp": "2025-12-04 12:05:06,907", "module": "__main__", "level": "INFO", "message": "DONE: loading environment variables completed"}
+{"timestamp": "2025-12-04 12:05:06,907", "module": "__main__", "level": "INFO", "message": "INFO: Raw data directory: data/raw"}
+{"timestamp": "2025-12-04 12:05:06,907", "module": "__main__", "level": "INFO", "message": "INFO: Preprocessed data directory: data/preprocessed"}
+{"timestamp": "2025-12-04 12:05:06,907", "module": "__main__", "level": "INFO", "message": "STEP 2: Downloading raw data"}
+{"timestamp": "2025-12-04 12:05:40,449", "module": "__main__", "level": "INFO", "message": "DONE: Raw data download completed"}
+{"timestamp": "2025-12-04 12:07:04,611", "module": "__main__", "level": "INFO", "message": "DONE: Preprocessing pipeline completed successfully"}
+{"timestamp": "2025-12-04 12:07:05,915", "module": "__main__", "level": "INFO", "message": "INFO: Items dataframe shape:          (5573985, 9)"}
+{"timestamp": "2025-12-04 12:07:05,916", "module": "__main__", "level": "INFO", "message": "INFO: Tracks catalog dataframe shape: (804814, 6)"}
+{"timestamp": "2025-12-04 12:07:05,916", "module": "__main__", "level": "INFO", "message": "INFO: Events dataframe shape:         (161879505, 4)"}
+{"timestamp": "2025-12-04 12:07:05,917", "module": "__main__", "level": "INFO", "message": "STEP 4: Splitting data into train/test sets"}
+{"timestamp": "2025-12-04 12:09:46,035", "module": "__main__", "level": "INFO", "message": "INFO: Train events dataframe shape: (152184638, 4)"}
+{"timestamp": "2025-12-04 12:09:46,035", "module": "__main__", "level": "INFO", "message": "INFO: Test events dataframe shape: (9694867, 4)"}
+{"timestamp": "2025-12-04 12:09:46,035", "module": "__main__", "level": "INFO", "message": "INFO: Train matrix shape: (1371787, 804766)"}
+{"timestamp": "2025-12-04 12:09:46,035", "module": "__main__", "level": "INFO", "message": "INFO: Test matrix shape: (1371787, 804766)"}
+{"timestamp": "2025-12-04 12:09:46,036", "module": "__main__", "level": "INFO", "message": "STEP 5: Finding popularity-based recommendations"}
+{"timestamp": "2025-12-04 12:09:52,116", "module": "__main__", "level": "INFO", "message": "STEP 6: Training collaborative filtering model"}
+{"timestamp": "2025-12-04 12:21:51,274", "module": "__main__", "level": "ERROR", "message": "ERROR: Training collaborative filtering model failed: index 804766 is out of bounds for axis 0 with size 804766"}
+{"timestamp": "2025-12-04 12:50:49,361", "module": "__main__", "level": "INFO", "message": "Music recommendation system starting", "version": "1.0", "component": "main"}
+{"timestamp": "2025-12-04 12:50:49,362", "module": "__main__", "level": "INFO", "message": "STEP 1: Loading environment variables"}
+{"timestamp": "2025-12-04 12:50:49,364", "module": "__main__", "level": "INFO", "message": "DONE: loading environment variables completed"}
+{"timestamp": "2025-12-04 12:50:49,365", "module": "__main__", "level": "INFO", "message": "INFO: Raw data directory: data/raw"}
+{"timestamp": "2025-12-04 12:50:49,365", "module": "__main__", "level": "INFO", "message": "INFO: Preprocessed data directory: data/preprocessed"}
+{"timestamp": "2025-12-04 12:50:49,365", "module": "__main__", "level": "INFO", "message": "STEP 2: Downloading raw data"}
+{"timestamp": "2025-12-04 12:51:25,367", "module": "__main__", "level": "INFO", "message": "DONE: Raw data download completed"}
+{"timestamp": "2025-12-04 12:52:44,946", "module": "__main__", "level": "INFO", "message": "DONE: Preprocessing pipeline completed successfully"}
+{"timestamp": "2025-12-04 12:52:46,412", "module": "__main__", "level": "INFO", "message": "INFO: Items dataframe shape:          (5573327, 9)"}
+{"timestamp": "2025-12-04 12:52:46,412", "module": "__main__", "level": "INFO", "message": "INFO: Tracks catalog dataframe shape: (804740, 6)"}
+{"timestamp": "2025-12-04 12:52:46,412", "module": "__main__", "level": "INFO", "message": "INFO: Events dataframe shape:         (161926255, 4)"}
+{"timestamp": "2025-12-04 12:52:46,413", "module": "__main__", "level": "INFO", "message": "STEP 4: Splitting data into train/test sets"}
+{"timestamp": "2025-12-04 12:55:24,166", "module": "__main__", "level": "INFO", "message": "INFO: Train events dataframe shape: (152225655, 4)"}
+{"timestamp": "2025-12-04 12:55:24,166", "module": "__main__", "level": "INFO", "message": "INFO: Test events dataframe shape: (9700600, 4)"}
+{"timestamp": "2025-12-04 12:55:24,166", "module": "__main__", "level": "INFO", "message": "INFO: Train matrix shape: (1371768, 804689)"}
+{"timestamp": "2025-12-04 12:55:24,166", "module": "__main__", "level": "INFO", "message": "INFO: Test matrix shape: (1371768, 804689)"}
+{"timestamp": "2025-12-04 12:55:24,166", "module": "__main__", "level": "INFO", "message": "STEP 5: Finding popularity-based recommendations"}
+{"timestamp": "2025-12-04 12:55:30,207", "module": "__main__", "level": "INFO", "message": "STEP 6: Training collaborative filtering model"}
+{"timestamp": "2025-12-04 13:44:32,382", "module": "__main__", "level": "INFO", "message": "Music recommendation system starting", "version": "1.0", "component": "main"}
+{"timestamp": "2025-12-04 13:44:32,383", "module": "__main__", "level": "INFO", "message": "STEP 1: Loading environment variables"}
+{"timestamp": "2025-12-04 13:44:32,386", "module": "__main__", "level": "INFO", "message": "DONE: loading environment variables completed"}
+{"timestamp": "2025-12-04 13:44:32,386", "module": "__main__", "level": "INFO", "message": "INFO: Raw data directory: data/raw"}
+{"timestamp": "2025-12-04 13:44:32,386", "module": "__main__", "level": "INFO", "message": "INFO: Preprocessed data directory: data/preprocessed"}
+{"timestamp": "2025-12-04 13:44:32,386", "module": "__main__", "level": "INFO", "message": "STEP 2: Skipping raw data download (--skip-download flag)"}
+{"timestamp": "2025-12-04 13:44:32,386", "module": "__main__", "level": "INFO", "message": "DONE: Raw data download completed"}
+{"timestamp": "2025-12-04 13:44:32,386", "module": "__main__", "level": "INFO", "message": "INFO: All raw files present in data/raw"}
+{"timestamp": "2025-12-04 13:46:01,047", "module": "__main__", "level": "INFO", "message": "DONE: Preprocessing pipeline completed successfully"}
+{"timestamp": "2025-12-04 13:46:02,288", "module": "__main__", "level": "INFO", "message": "INFO: Items dataframe shape:          (5573910, 9)"}
+{"timestamp": "2025-12-04 13:46:02,288", "module": "__main__", "level": "INFO", "message": "INFO: Tracks catalog dataframe shape: (804808, 6)"}
+{"timestamp": "2025-12-04 13:46:02,289", "module": "__main__", "level": "INFO", "message": "INFO: Events dataframe shape:         (161765673, 4)"}
+{"timestamp": "2025-12-04 13:46:02,289", "module": "__main__", "level": "INFO", "message": "STEP 4: Splitting data into train/test sets"}
+{"timestamp": "2025-12-04 13:48:38,353", "module": "__main__", "level": "INFO", "message": "INFO: Train events dataframe shape: (152067512, 4)"}
+{"timestamp": "2025-12-04 13:48:38,354", "module": "__main__", "level": "INFO", "message": "INFO: Test events dataframe shape: (9698161, 4)"}
+{"timestamp": "2025-12-04 13:48:38,354", "module": "__main__", "level": "INFO", "message": "INFO: Train matrix shape: (1371768, 804758)"}
+{"timestamp": "2025-12-04 13:48:38,354", "module": "__main__", "level": "INFO", "message": "INFO: Test matrix shape: (1371768, 804758)"}
+{"timestamp": "2025-12-04 13:48:38,354", "module": "__main__", "level": "INFO", "message": "STEP 5: Finding popularity-based recommendations"}
+{"timestamp": "2025-12-04 13:48:44,073", "module": "__main__", "level": "INFO", "message": "STEP 6: Training collaborative filtering model"}
+{"timestamp": "2025-12-04 14:43:00,398", "module": "__main__", "level": "INFO", "message": "STEP 7: Loading similar tracks finder"}
+{"timestamp": "2025-12-04 15:36:19,919", "module": "__main__", "level": "ERROR", "message": "ERROR: Building similar tracks index failed: Series name must be a string"}
+{"timestamp": "2025-12-04 21:02:36,635", "module": "__main__", "level": "INFO", "message": "Music recommendation system starting", "version": "1.0", "component": "main"}

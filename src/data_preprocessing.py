@@ -1,5 +1,20 @@
 '''
-    Data Preprocessing Pipeline
+    Data Preprocessing
+
+    This module provides functionality to preprocess raw data 
+    into a format suitable for model training.
+
+    Strategy:
+    - Explode tracks to get all artists, albums, and genres for each track,
+    - Clean names of entities,
+    - Build entity catalogs (standardize names, deduplicate entities, create canonical IDs),
+    - Create ID mappings (raw_id → canonical_id dictionaries),
+    - Build items table (join all metadata),
+    - Build tracks catalog (unique tracks with metadata),
+    - Build events dataframe (filter outliers, map IDs, aggregate),
+    - Create label encoders (user_id and track_id to sequential indices),
+    - Not implemented, but left in case needed in the project part 2: 
+    Create sparse interaction matrix (users × tracks).
 
     Input:
     - raw_dir - Directory with raw parquet files (tracks, catalog_names, interactions),
@@ -9,8 +24,16 @@
     - items.parquet - Canonical music catalog with track_group_id for diversity,
     - tracks_catalog_clean.parquet - Track lookup table,
     - events.parquet - User-track interaction events,
-    - label_encoders.pkl - User and track ID to index mappings (for model training),
-    - interaction_matrix.npz - Sparse CSR matrix of user-track interactions.
+    - ./models/label_encoders.pkl - User and track ID to index mappings (for model training),
+    - Not implemented, but left in case needed in the project part 2: 
+    interaction_matrix.npz - Sparse CSR matrix of user-track interactions.
+
+    Usage:
+    python -m src.data_preprocessing --build-items-df
+    python -m src.data_preprocessing --build-tracks-catalog
+    python -m src.data_preprocessing --build-events-df
+    python -m src.data_preprocessing --create-label-encoders
+    python -m src.data_preprocessing --create-sparse-interaction-matrix
 '''
 
 # ---------- Imports ---------- #
@@ -18,14 +41,18 @@ import os
 import gc
 import logging
 import pickle
+import argparse
 
 import polars as pl
-import numpy as np
 from scipy.sparse import csr_matrix, save_npz
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+from src.s3_utils import upload_data_to_s3
+
+# ---------- Load environment variables ---------- #
+# Load from config/.env (relative to project root)
+config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
+load_dotenv(os.path.join(config_dir, '.env'))
 
 # ---------- Logging setup ---------- #
 logging.basicConfig(
@@ -458,13 +485,42 @@ def create_label_encoders(preprocessed_dir: str):
         'track_decoder': track_decoder,
     }
     
-    # Save encoders
-    encoders_path = f'{preprocessed_dir}/label_encoders.pkl'
+    # Save encoders to models directory
+    models_dir = os.getenv('MODELS_DIR', './models')
+    os.makedirs(models_dir, exist_ok=True)
+    encoders_path = os.path.join(models_dir, 'label_encoders.pkl')
     with open(encoders_path, 'wb') as f:
         pickle.dump(encoders, f)
     logger.info(f'Saved label encoders to {encoders_path}')
+
+    # Free up memory
+    del (events, encoders, 
+        user_encoder, track_encoder, 
+        user_decoder, track_decoder
+    )
+    gc.collect()
+
+    return None
     
+#    Not implemented, but left in case needed in the project part 2
 #    # ---------- Create sparse interaction matrix ---------- #
+#    def create_sparse_interaction_matrix(preprocessed_dir: str):
+#    '''
+#        Create sparse interaction matrix.
+#    '''
+#    logger.info('Creating sparse interaction matrix')
+#    
+#    # Load events
+#    logger.info('Loading events from %s', preprocessed_dir)
+#    events = pl.read_parquet(f'{preprocessed_dir}/events.parquet')
+#    encoders = load_encoders(preprocessed_dir)
+#    
+#    user_encoder = encoders['user_encoder']
+#    track_encoder = encoders['track_encoder']
+#    
+#    n_users = len(user_encoder)
+#    n_tracks = len(track_encoder)
+#    
 #    # Build sparse interaction matrix (users * tracks)
 #    # Use listen_count as the interaction strength
 #    events_encoded = (
@@ -496,22 +552,17 @@ def create_label_encoders(preprocessed_dir: str):
 #    sparse_matrix_path = f'{preprocessed_dir}/events_matrix.npz'
 #    save_npz(sparse_matrix_path, events_matrix)
 #    logger.info(f'Saved events sparse matrix to {sparse_matrix_path}')
-    
-    # Remove all dataframes from memory
-    del (events, encoders, 
-        user_encoder, track_encoder, 
-        user_decoder, track_decoder,
-#       events_encoded, events_matrix, sparse_matrix_path
-    )
-    # Collect garbage
-    gc.collect()
+#    
+#    # Free up memory
+#    del (events_encoded, events_matrix, sparse_matrix_path)
+#    gc.collect()
+#
+#    return None
 
-    return None
-
-# ---------- Main entry point ---------- #
+# ---------- Data preprocessing pipeline ---------- #
 def run_preprocessing(raw_dir: str, preprocessed_dir: str):
     '''
-        Main entry point for the preprocessing pipeline.
+        Data preprocessing pipeline.
         Loads raw data and runs the full preprocessing pipeline.
     '''
     logger.info('Starting raw data preprocessing')
@@ -521,8 +572,58 @@ def run_preprocessing(raw_dir: str, preprocessed_dir: str):
     build_events_df(raw_dir, preprocessed_dir)
     create_label_encoders(preprocessed_dir)
     
+    # Upload to S3
+    logger.info('Uploading data files to S3')
+    upload_data_to_s3(f'{preprocessed_dir}/items.parquet', 'items.parquet')
+    upload_data_to_s3(f'{preprocessed_dir}/events.parquet', 'events.parquet')
+    
     logger.info('Succesfully done with data preprocessing')
     
     return None
 
+# ---------- Main entry point ---------- #
+if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser(description='Data Preprocessing Pipeline')
+    parser.add_argument('--build-items-df', action='store_true', help='Build items dataframe only')
+    parser.add_argument('--build-tracks-catalog', action='store_true', help='Build tracks catalog only')
+    parser.add_argument('--build-events-df', action='store_true', help='Build events dataframe only')
+    parser.add_argument('--create-label-encoders', action='store_true', help='Create label encoders only')
+    
+    args = parser.parse_args()
+    
+    raw_dir = os.getenv('RAW_DATA_DIR', './data/raw')
+    preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', './data/preprocessed')
+    
+    # Check if any individual step flag is set
+    individual_steps = (
+        args.build_items_df or 
+        args.build_tracks_catalog or 
+        args.build_events_df or 
+        args.create_label_encoders
+    )
+    
+    if individual_steps:
+        # Run only specified steps
+        if args.build_items_df:
+            logger.info('Running: build_items_df')
+            build_items_df(raw_dir, preprocessed_dir)
+            
+        if args.build_tracks_catalog:
+            logger.info('Running: build_tracks_catalog')
+            build_tracks_catalog(preprocessed_dir)
+            
+        if args.build_events_df:
+            logger.info('Running: build_events_df')
+            build_events_df(raw_dir, preprocessed_dir)
+            
+        if args.create_label_encoders:
+            logger.info('Running: create_label_encoders')
+            create_label_encoders(preprocessed_dir)
+    else:
+        # Run full pipeline
+        logger.info('Running full preprocessing pipeline')
+        run_preprocessing(raw_dir, preprocessed_dir)
+
+# ---------- All exports ---------- #
 __all__ = ['run_preprocessing']

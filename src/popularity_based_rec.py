@@ -10,23 +10,32 @@
 
     Input:
     - events.parquet - user-track interaction events
-    - label_encoders.pkl - user and track ID to index mappings (for model training)
+    - ./models/label_encoders.pkl - user and track ID to index mappings (for model training)
 
     Output:
     - top_popular_tracks.parquet - top N popular tracks
+
+    Usage:
+    python -m src.popularity_based_rec --top-tracks
+    python -m src.popularity_based_rec --user-id 1234567890 --n-recs 20
 '''
 
 # ---------- Imports ---------- #
 import os
 import gc
 import logging
-from typing import List, Optional
+import argparse
+from typing import List
 
 import polars as pl
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+from src.s3_utils import upload_recommendations_to_s3
+
+# ---------- Load environment variables ---------- #
+# Load from config/.env (relative to project root)
+config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
+load_dotenv(os.path.join(config_dir, '.env'))
 
 # ---------- Logging setup ---------- #
 logging.basicConfig(
@@ -44,15 +53,22 @@ class PopularityRecommender:
         Compute track popularity from events based on the method provided.
             
         Args:
-            method: Method to compute track popularity
-            events_df: DataFrame with columns [user_id, track_id, listen_count]
-            catalog_df: Optional catalog DataFrame for metadata
+        - method - method to compute track popularity (listen_count, user_count, avg_listens)
+
+        Attributes:
+        - popular_tracks - DataFrame with columns [track_id, popularity_score]
+        - catalog - Optional catalog DataFrame for metadata
+
+        Methods:
+        - fit - compute track popularity from events based on the method provided
+        - get_top_tracks - get top N most popular tracks
+        - recommend - recommend top popular tracks for a single given user_id that the user hasn't listened to
     '''
 
     def __init__(self, method: str = 'listen_count'):
         self.method = method
-        self.popular_tracks = None  # DataFrame with track_id and popularity_score
-        self.catalog = None  # Optional catalog DataFrame for metadata
+        self.popular_tracks = None
+        self.catalog = None
         
     def fit(self, preprocessed_dir: str):
         '''
@@ -100,9 +116,8 @@ class PopularityRecommender:
         logger.info(f'Computed popularity for {self.popular_tracks.height:,} tracks')
         logger.info(f'Top track score: {self.popular_tracks["popularity_score"][0]:.2f}')
 
-        # Remove all dataframes from memory
+        # Free up memory
         del (events, popularity)
-        # Collect garbage
         gc.collect()
 
 
@@ -130,14 +145,17 @@ class PopularityRecommender:
         top_tracks.write_parquet(output_path)
         logger.info('Results of popularity-based recommendations saved to %s', output_path)
 
-        # Free memory
+        # Upload to S3
+        upload_recommendations_to_s3(output_path, 'top_popular.parquet')
+
+        # Free up memory
         del (catalog, top_tracks)
         gc.collect()
 
         return None
     
     # ---------- Recommend top popular tracks for a user ---------- #
-    def recommend(self, preprocessed_dir: str, user_id: int, n: int = 10, filter_listened: bool = True) -> List[int]:
+    def recommend_to_one(self, preprocessed_dir: str, user_id: int, n: int = 10, filter_listened: bool = True) -> List[int]:
         '''
             Recommend top popular tracks for a single given user_id that the user hasn't listened to.
         '''
@@ -182,10 +200,10 @@ def find_top_popular_tracks(preprocessed_dir: str = None) -> None:
     '''
         Find and save top N popular tracks.
     '''
+    
     # Load config from environment
     if preprocessed_dir is None:
         preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
-    
     n = int(os.getenv('POPULARITY_TOP_N', 100))
     method = os.getenv('POPULARITY_METHOD', 'listen_count')
 
@@ -195,14 +213,55 @@ def find_top_popular_tracks(preprocessed_dir: str = None) -> None:
     # Get top tracks
     recommender.get_top_tracks(preprocessed_dir=preprocessed_dir, n=n, with_metadata=True)
 
-
+    # Free up memory
     del recommender
     gc.collect()
 
     return None
 
+# ---------- Main entry point ---------- #
 if __name__ == '__main__':
-    logger.info('Finding top popular tracks')
-    find_top_popular_tracks()
-    logger.info('Top popular tracks found')
+
+    parser = argparse.ArgumentParser(description='Popularity-based Recommender')
+    parser.add_argument('--top-tracks', action='store_true', help='Find and save top N popular tracks')
+    parser.add_argument('--user-id', type=int, help='Get recommendations for a specific user ID')
+    parser.add_argument('--n-recs', type=int, default=10, help='Number of recommendations (default: 10)')
+    parser.add_argument('--method', type=str, default=None, 
+                        help='Popularity method: listen_count, user_count, avg_listens')
+    args = parser.parse_args()
+
+    preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+    method = args.method or os.getenv('POPULARITY_METHOD', 'listen_count')
+
+    if args.top_tracks:
+        logger.info('Finding top popular tracks')
+        find_top_popular_tracks(preprocessed_dir)
+        logger.info('Top popular tracks found')
+
+    elif args.user_id:
+        logger.info(f'Getting recommendations for user {args.user_id}')
+        
+        recommender = PopularityRecommender(method=method)
+        recommender.fit(preprocessed_dir)
+        
+        recommendations = recommender.recommend_to_one(
+            preprocessed_dir=preprocessed_dir,
+            user_id=args.user_id,
+            n=args.n_recs,
+            filter_listened=True
+        )
+        
+        print(f'\nTop {args.n_recs} popular tracks for user {args.user_id}:')
+        for i, track_id in enumerate(recommendations, 1):
+            print(f'  {i}. Track {track_id}')
+
+    else:
+        parser.print_help()
+        print('\nExamples:')
+        print('  python -m src.popularity_based_rec --top-tracks')
+        print('  python -m src.popularity_based_rec --user-id 12345 --n-recs 20')
+        print('  python -m src.popularity_based_rec --top-tracks --method user_count')
+
+# ---------- All exports ---------- #
+__all__ = ['PopularityRecommender', 'find_top_popular_tracks']
 

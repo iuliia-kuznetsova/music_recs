@@ -10,6 +10,7 @@
 import os
 import sys
 import argparse
+from dotenv import load_dotenv
 from scipy.sparse import load_npz
 import logging
 from pythonjsonlogger import jsonlogger
@@ -154,15 +155,10 @@ def main():
         # Verify that the required preprocessed data files exist
         preprocessed_files = [
             'items.parquet', 'tracks_catalog_clean.parquet', 
-            'events.parquet'
+            'events.parquet', 'label_encoders.pkl'
         ]
         missing_prerprocessed_files = [f for f in preprocessed_files 
             if not os.path.exists(os.path.join(preprocessed_dir, f))]
-        
-        # Check label_encoders.pkl in models directory
-        models_dir = os.getenv('MODELS_DIR', './models')
-        if not os.path.exists(os.path.join(models_dir, 'label_encoders.pkl')):
-            missing_prerprocessed_files.append('label_encoders.pkl (in models/)')
         
         if missing_prerprocessed_files:
             logger.error(f'ERROR: Missing files: {missing_prerprocessed_files}')
@@ -206,6 +202,7 @@ def main():
         sys.exit(1)
         
     # Log shapes
+    import polars as pl
     train_events_shape = pl.read_parquet(f'{preprocessed_dir}/train_events.parquet').shape
     test_events_shape = pl.read_parquet(f'{preprocessed_dir}/test_events.parquet').shape
     train_matrix_shape = load_npz(f'{preprocessed_dir}/train_matrix.npz').shape
@@ -243,8 +240,8 @@ def main():
     print('='*60)
     
     try:
-        similar_finder = get_similar_tracks()
-        similar_finder.find_similar_to_all()
+        similar_finder = get_similar_tracks(preprocessed_dir)
+        similar_finder.build_full_index()
         logger.info('Similar tracks index built for all tracks')
     except Exception as e:
         logger.error(f'ERROR: Building similar tracks index failed: {e}')

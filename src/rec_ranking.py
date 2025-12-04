@@ -1,5 +1,5 @@
 '''
-Recommendation Ranking and Re-ranking
+Recommendations Ranking and Re-ranking
 
 This module provides functionality to rank and re-rank recommendations using:
 1. Multiple scoring signals
@@ -8,29 +8,35 @@ This module provides functionality to rank and re-rank recommendations using:
 4. Recency filtering
 '''
 
+# ---------- Imports ---------- #
+from dotenv import load_dotenv
+import os
+
 import logging
 from typing import List, Tuple, Dict, Optional, Set
 
 import numpy as np
 import polars as pl
 
+# ---------- Load environment variables ---------- #
+# Load from config/.env (relative to project root)
+config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
+load_dotenv(os.path.join(config_dir, '.env'))
+
+# ---------- Logging setup ---------- #
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] [%(levelname)s] %(message)s',
 )
 logger = logging.getLogger(__name__)
 
-
+# ---------- Recommendation ranker ---------- #
 class RecommendationRanker:
     '''
-    Rank and re-rank recommendations.
+    Rank recommendations.
     '''
     
     def __init__(self, catalog_df: pl.DataFrame):
-        '''
-        Args:
-            catalog_df: Catalog with track metadata including track_group_id
-        '''
         self.catalog = catalog_df
         
         # Build track group mapping
