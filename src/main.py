@@ -77,7 +77,7 @@ def main():
 
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Music Recommendation System')
-    parser.add_argument('--skip-download', type=bool, default=False)
+    parser.add_argument('--skip-download', action='store_true', default=False)
     args = parser.parse_args()
     
     # ---------- Step 1: Load environment variables ---------- #

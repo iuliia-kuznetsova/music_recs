@@ -272,16 +272,10 @@ def get_ranked_recommendations(
         Load or generate ranked recommendations.
     '''
     logger.info('Loading ranked recommendations')
-    ranked_path = f'{results_dir}/ranked.parquet'
-    
-    if os.path.exists(ranked_path):
-        ranked_recs = pl.read_parquet(ranked_path)['track_id'].to_list()
-        logger.info(f'Loaded {len(ranked_recs):,} ranked recommendations')
-    else:
-        logger.info('Ranked recommendations not found, generating using ranked model...')
-        ranked_recs = generate_ranked_recommendations(preprocessed_dir, models_dir, n=n)
-        logger.info(f'Generated {len(ranked_recs):,} ranked recommendations')
-    
+    # Delegate to generate_ranked_recommendations which handles caching internally
+    # and always returns Dict[int, List[int]]
+    ranked_recs = generate_ranked_recommendations(preprocessed_dir, models_dir, n=n, sample_users=sample_users)
+    logger.info(f'Loaded/generated recommendations for {len(ranked_recs):,} users')
     return ranked_recs
 
 # ---------- Evaluation (implementation) ---------- #

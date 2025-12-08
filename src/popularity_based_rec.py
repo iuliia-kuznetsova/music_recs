@@ -269,8 +269,8 @@ if __name__ == '__main__':
     parser.add_argument('--n-recs', type=int, default=10, help='Number of recommendations (default: 10)')
     parser.add_argument('--method', type=str, default=None, 
                         help='Popularity method: listen_count, user_count, avg_listens')
-    parser.add_argument('--filter-listened', action='store_true', default=True, help='Filter out tracks the user has already listened to')
-    parser.add_argument('--with-metadata', action='store_true', default=True, help='Add metadata to the top popular tracks')
+    parser.add_argument('--filter-listened', action='store_true', default=False, help='Filter out tracks the user has already listened to')
+    parser.add_argument('--with-metadata', action='store_true', default=False, help='Add metadata to the top popular tracks')
     args = parser.parse_args()
 
     results_dir = os.getenv('RESULTS_DIR', './results')
