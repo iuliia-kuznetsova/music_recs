@@ -1,22 +1,20 @@
 '''
 Recommendation Model Evaluation
 
-This module provides metrics for evaluating recommendation quality:
-- Precision@K - fraction of recommended items that are relevant
-- Recall@K - fraction of relevant items that are recommended
-- NDCG@K - normalized discounted cumulative gain (ranking quality)
-- Novelty - measures how novel/unpopular the recommendations are
-- Diversity - measures variety in recommendations using track_group_id
+    This module provides functionality to evaluate recommendation models using metrics:
+    - Precision@K - fraction of recommended items that are relevant
+    - Recall@K - fraction of relevant items that are recommended
+    - NDCG@K - normalized discounted cumulative gain (ranking quality)
+    - Novelty - measures how novel/unpopular the recommendations are
+    - Diversity - measures variety in recommendations using track_group_id
 
-Models: popularity, collaborative (ALS), ranked (CatBoost)
+    Models: popularity, collaborative (ALS), ranked (CatBoost)
 
-Results are saved to ./results as JSON
+    Results are saved to ./results as JSON
 
-Usage:
-    python -m src.rec_evaluation --model popularity
-    python -m src.rec_evaluation --model collaborative
-    python -m src.rec_evaluation --model ranked
-    python -m src.rec_evaluation --model all
+    Usage:
+        python -m src.rec_evaluation # evaluate all models
+        python -m src.rec_evaluation --model popularity # model to evaluate: popularity, collaborative, ranked, all
 '''
 
 # ---------- Imports ---------- #
@@ -34,9 +32,9 @@ import polars as pl
 from scipy.sparse import load_npz
 from dotenv import load_dotenv
 
+from src.popularity_based_rec import PopularityRecommender
+from src.collaborative_rec import ALSRecommender, load_als_model
 from src.rec_ranking import generate_ranked_recommendations
-from src.popularity_based_rec import generate_popularity_recommendations
-from src.collaborative_rec import load_als_model, generate_als_recommendations
 
 # ---------- Load environment variables ---------- #
 config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
@@ -48,12 +46,29 @@ logger = logging.getLogger(__name__)
 
 # ---------- Recommendation Evaluator ---------- #
 class RecommendationEvaluator:
-    '''Compute Precision@K, Recall@K, NDCG@K, Novelty, Diversity.'''
+    '''
+        Compute Precision@K, Recall@K, NDCG@K, Novelty, Diversity.
+        
+        1. Initialize the evaluator with the catalog and events data
+        2. Compute the track popularity and track groups for diversity
+        3. Compute the precision@k, recall@k, ndcg@k, novelty, diversity metrics
+    '''
     
-    def __init__(self, catalog_df: pl.DataFrame, events_df: pl.DataFrame):
+    def __init__(self, catalog_df: pl.DataFrame, events_df: pl.DataFrame, results_dir: str = None):
+        
         # Track popularity for novelty
-        track_pop = events_df.group_by('track_id').agg(pl.sum('listen_count').alias('pop'))
-        self.track_pop = dict(zip(track_pop['track_id'].to_list(), track_pop['pop'].to_list()))
+        if results_dir is None:
+            results_dir = os.getenv('RESULTS_DIR', './results')
+        
+        popularity_track_scores_path = os.path.join(results_dir, 'popularity_track_scores.parquet')
+        if os.path.exists(popularity_track_scores_path):
+            popularity_track_scores = pl.read_parquet(popularity_track_scores_path)
+            self.track_pop = dict(zip(popularity_track_scores['track_id'].to_list(), popularity_track_scores['popularity_score'].to_list()))
+        else:
+            # Compute from events if file doesn't exist
+            track_pop = events_df.group_by('track_id').agg(pl.sum('listen_count').alias('pop'))
+            self.track_pop = dict(zip(track_pop['track_id'].to_list(), track_pop['pop'].to_list()))
+        
         self.max_pop = max(self.track_pop.values()) if self.track_pop else 1
         
         # Track groups for diversity
@@ -64,7 +79,9 @@ class RecommendationEvaluator:
     
     def precision_at_k(self, recs: Dict[int, List[int]], test: Dict[int, Set[int]], k: int) -> float:
         '''
-            Precision@K - fraction of recommended items that are relevant.
+            Precision@K - fraction of recommended items that are relevant.            
+            - Compute the precision@k for each user
+            - Return the average precision@k
         '''
         
         scores = [len(set(recs[u][:k]) & test[u]) / k for u in recs if u in test and recs[u]]
@@ -82,7 +99,9 @@ class RecommendationEvaluator:
     
     def ndcg_at_k(self, recs: Dict[int, List[int]], test: Dict[int, Set[int]], k: int) -> float:
         '''
-            NDCG@K - normalized discounted cumulative gain.
+            NDCG@K - normalized discounted cumulative gain.            
+            - Compute the NDCG@k for each user
+            - Return the average NDCG@k
         '''
         
         ndcgs = []
@@ -99,7 +118,9 @@ class RecommendationEvaluator:
     
     def novelty(self, recs: Dict[int, List[int]], k: int) -> float:
         '''
-            Novelty - measures how novel/unpopular the recommendations are.
+            Novelty - measures how novel/unpopular the recommendations are.            
+            - Compute the novelty score for each user
+            - Return the average novelty score
         '''
         
         scores = [-np.log2(self.track_pop.get(t, 1) / self.max_pop + 1e-10)
@@ -109,7 +130,9 @@ class RecommendationEvaluator:
     
     def diversity(self, recs: Dict[int, List[int]], k: int) -> float:
         '''
-            Diversity - measures variety in recommendations using track_group_id.
+            Diversity - measures variety in recommendations using track_group_id.            
+            - Compute the diversity score for each user
+            - Return the average diversity score
         '''
         
         scores = [len({self.track_to_group.get(t, t) for t in r[:k]}) / len(r[:k])
@@ -117,68 +140,138 @@ class RecommendationEvaluator:
         
         return float(np.mean(scores)) if scores else 0.0
     
-    def evaluate(self, recs: Dict[int, List[int]], test: Dict[int, Set[int]], k: int) -> Dict:
+    def all_metrics(self, recs: Dict[int, List[int]], test: Dict[int, Set[int]], k: int) -> Dict:
         '''
-            Evaluate recommendations and return all metrics.
+            Compute all metrics and return them as a dictionary.            
+            - Compute the precision@k, recall@k, ndcg@k, novelty, diversity metrics
+            - Return the metrics as a dictionary
         '''
+        
         return {
-            f'precision@{k}': self.precision_at_k(recs, test, k),
-            f'recall@{k}': self.recall_at_k(recs, test, k),
-            f'ndcg@{k}': self.ndcg_at_k(recs, test, k),
-            f'novelty@{k}': self.novelty(recs, k),
-            f'diversity@{k}': self.diversity(recs, k),
+            'precision@k': self.precision_at_k(recs, test, k),
+            'recall@k': self.recall_at_k(recs, test, k),
+            'ndcg@k': self.ndcg_at_k(recs, test, k),
+            'novelty@k': self.novelty(recs, k),
+            'diversity@k': self.diversity(recs, k),
         }
 
-# ---------- Recommendation Generators ---------- #
-def get_popularity_recommendations(preprocessed_dir: str, n: int = 100) -> Dict[int, List[int]]:
+# ---------- Popularity-based recommendations ---------- #
+def generate_popular_recommendations(
+    results_dir: str,
+    train_events: pl.DataFrame,
+    test_events: pl.DataFrame,
+    catalog: pl.DataFrame,
+    n: int = 100,
+    n_recs: int = 10,
+    method: str = 'listen_count'
+) -> Dict[int, List[int]]:
     '''
-        Popularity recommendations.
+        Generate popularity-based recommendations for each test user using PopularityRecommender.
+        
+        1. Check if top_popular.parquet exists, load it, otherwise compute from train_events
+        2. For each test user, filter out tracks they've listened to
+        3. Return top N recommendations per user
     '''
-
-    logger.info('Loading popularity recommendations')
-    results_dir = os.getenv('RESULTS_DIR', './results')
-    popularity_path = f'{results_dir}/top_popular.parquet'
+    logger.info(f'Generating popular recommendations using method={method}')
+    
+    # Check if popular tracks exist
+    popularity_path = os.path.join(results_dir, 'top_popular.parquet')
+    
+    # Initialize recommender and load/compute popularity
+    recommender = PopularityRecommender()
     
     if os.path.exists(popularity_path):
-        popularity_recs = pl.read_parquet(popularity_path)['track_id'].to_list()
-        logger.info(f'Loaded {len(popularity_recs):,} popularity recommendations')
+        logger.info(f'Loading popular tracks from {popularity_path}')
+        recommender.top_tracks = pl.read_parquet(popularity_path)
+        logger.info(f'Loaded {recommender.top_tracks.height:,} popular tracks')
     else:
-        logger.info('Popularity recommendations not found, generating using popularity model...')
-        popularity_recs = generate_popularity_recommendations(preprocessed_dir, n=n)
-        logger.info(f'Generated {len(popularity_recs):,} popularity recommendations')
+        # Compute from preprocessed_dir (uses full events.parquet)
+        preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+        logger.info(f'No file found, computing popularity using PopularityRecommender')
+        recommender.fit(
+            preprocessed_dir=preprocessed_dir,
+            method=method,
+            with_metadata=False,
+            n=n
+        )
     
-    return popularity_recs
+    # Build user listening history from train events (computed once)
+    user_listened = defaultdict(set)
+    for row in train_events.iter_rows(named=True):
+        user_listened[row['user_id']].add(row['track_id'])
+    
+    # Get test users
+    test_users = test_events['user_id'].unique().to_list()
+    logger.info(f'Generating recommendations for {len(test_users):,} test users')
+    
+    # Generate recommendations for each user using recommender.recommend()
+    popularity_based_rec = {}
+    for i, user_id in enumerate(test_users):
+        if i % 10000 == 0 and i > 0:
+            logger.info(f'Generated {i:,} / {len(test_users):,}')
+        
+        # Use pre-computed user_listened for efficiency (no file loading)
+        recs = recommender.recommend(
+            user_id=user_id,
+            n_recs=n_recs,
+            user_listened=user_listened.get(user_id, set())
+        )
+        popularity_based_rec[user_id] = recs
+    
+    gc.collect()
+    logger.info(f'Generated {len(popularity_based_rec):,} recommendation lists')
+    return popularity_based_rec
 
-def get_collaborative_recommendations(preprocessed_dir: str, models_dir: str, n: int = 10) -> Dict[int, List[int]]:
+# ---------- Collaborative-based recommendations ---------- #
+def generate_als_recommendations(
+    model_path: str,
+    train_matrix,
+    test_events: pl.DataFrame,
+    n: int = 10,
+) -> Dict[int, List[int]]:
     '''
-        ALS collaborative filtering recommendations.
+        Generate ALS-based recommendations.
+        
+        1. Load the ALS model
+        2. Get the test users
+        3. Generate recommendations for each test user
+        4. Return the recommendations
     '''
-    logger.info('Loading ALS recommendations')
+    logger.info(f'Generating ALS recommendations from {model_path}')
     
-    results_dir = os.getenv('RESULTS_DIR', './results')
-    als_path = f'{results_dir}/personal_als.parquet'
+    # Load model
+    als_model = load_als_model(model_path)
     
-    if os.path.exists(als_path):
-        df = pl.read_parquet(als_path)
-        als_recs = {u: df.filter(pl.col('user_id') == u).sort('rank')['track_id'].to_list()[:n]
-                for u in df['user_id'].unique().to_list()}
-        logger.info(f'Loaded {len(als_recs):,} ALS recommendations')
-    else:
-        logger.info('ALS recommendations not found, generating using ALS model...')
-        model = load_als_model(f'{models_dir}/als_model.pkl')
-        matrix = load_npz(f'{preprocessed_dir}/train_matrix.npz')
-        users = pl.read_parquet(f'{preprocessed_dir}/test_events.parquet')['user_id'].unique().to_list()
-        als_recs = generate_als_recommendations(model, matrix, users, n=n)
-        logger.info(f'Generated {len(als_recs):,} ALS recommendations')
+    # Get test users
+    test_users = test_events['user_id'].unique().to_list()
+    logger.info(f'Generating for {len(test_users):,} test users')
     
-    return als_recs
+    als_based_rec = {}
     
-def get_ranked_recommendations(preprocessed_dir: str, models_dir: str, n: int = 10, sample_users: int = 5000) -> Dict[int, List[int]]:
+    for i, user_id in enumerate(test_users):
+        if i % 10000 == 0 and i > 0:
+            logger.info(f'  Generated {i:,} / {len(test_users):,}')    
+        
+        # Generate recommendations for the user
+        recs = als_model.recommend(user_id, train_matrix, n=n, filter_already_liked=True)
+        
+        # Extract the track_ids
+        als_based_rec[user_id] = [track_id for track_id, _ in recs]
+    
+    logger.info(f'Generated {len(als_based_rec):,} recommendation lists')
+    return als_based_rec
+    
+def get_ranked_recommendations(
+    preprocessed_dir: str,
+    results_dir: str,
+    models_dir: str,
+    n: int = 10,
+    sample_users: int = 5000
+) -> Dict[int, List[int]]:
     '''
-        Ranked recommendations.
+        Load or generate ranked recommendations.
     '''
     logger.info('Loading ranked recommendations')
-    results_dir = os.getenv('RESULTS_DIR', './results')
     ranked_path = f'{results_dir}/ranked.parquet'
     
     if os.path.exists(ranked_path):
@@ -191,9 +284,9 @@ def get_ranked_recommendations(preprocessed_dir: str, models_dir: str, n: int = 
     
     return ranked_recs
 
-# ---------- Evaluation ---------- #
-def evaluate_model(model_name: str, preprocessed_dir: str, models_dir: str,
-                   k_values: List[int], output_dir: str, sample_users: int = 5000) -> Dict:
+# ---------- Evaluation (implementation) ---------- #
+def _evaluate_model_impl(model_name: str, preprocessed_dir: str, models_dir: str,
+                         k_values: List[int], output_dir: str, n_recs: int = 10, sample_users: int = 5000) -> Dict:
     '''
         Evaluate a model and save results to JSON.
     '''
@@ -202,18 +295,25 @@ def evaluate_model(model_name: str, preprocessed_dir: str, models_dir: str,
     # Load data
     catalog = pl.read_parquet(f'{preprocessed_dir}/tracks_catalog_clean.parquet')
     events = pl.read_parquet(f'{preprocessed_dir}/events.parquet')
+    train_events = pl.read_parquet(f'{preprocessed_dir}/train_events.parquet')
     test_events = pl.read_parquet(f'{preprocessed_dir}/test_events.parquet')
+    train_matrix = load_npz(f'{preprocessed_dir}/train_matrix.npz')
     
-    # Get recommendations
+    # Get recommendations based on model type
     if model_name == 'popularity':
-        recs = get_popularity_recommendations(preprocessed_dir)
+        recs = generate_popular_recommendations(output_dir, train_events, test_events, catalog, n_recs=n_recs)
     elif model_name == 'collaborative':
-        recs = get_collaborative_recommendations(preprocessed_dir, models_dir)
+        als_model_path = os.path.join(models_dir, 'als_model.pkl')
+        recs = generate_als_recommendations(als_model_path, train_matrix, test_events, n=n_recs)
     elif model_name == 'ranked':
-        recs = get_ranked_recommendations(preprocessed_dir, sample_users=sample_users)
+        recs = get_ranked_recommendations(preprocessed_dir, output_dir, models_dir, n=n_recs, sample_users=sample_users)
     else:
         logger.error(f'Unknown model: {model_name}')
         return {}
+    
+    # Free train_matrix early as it's no longer needed
+    del train_matrix
+    gc.collect()
     
     if not recs:
         logger.error(f'No recommendations found for {model_name}')
@@ -224,14 +324,33 @@ def evaluate_model(model_name: str, preprocessed_dir: str, models_dir: str,
     for row in test_events.iter_rows(named=True):
         test_items[row['user_id']].add(row['track_id'])
     
+    # Free train_events early as it's no longer needed
+    del train_events
+    
     # Evaluate
-    evaluator = RecommendationEvaluator(catalog, events)
-    results = {'model_name': model_name, 'evaluation_date': datetime.now().isoformat(), 'metrics': {}}
+    evaluator = RecommendationEvaluator(catalog, events, output_dir)
+    total_users = events['user_id'].n_unique()
+    
+    # Free catalog and events after evaluator is initialized
+    del catalog, events, test_events
+    gc.collect()
+    
+    results = {
+        'model_name': model_name,
+        'evaluation_date': datetime.now().isoformat(),
+        'total_users': total_users,
+        'evaluated_users': len(recs),
+        'metrics': {}
+    }
     
     for k in k_values:
-        metrics = evaluator.evaluate(recs, test_items, k)
+        metrics = evaluator.all_metrics(recs, test_items, k)
         results['metrics'][f'k={k}'] = metrics
-        logger.info(f'K={k}: P={metrics[f"precision@{k}"]:.4f} R={metrics[f"recall@{k}"]:.4f} NDCG={metrics[f"ndcg@{k}"]:.4f}')
+        logger.info(f'K={k}: P={metrics["precision@k"]:.4f} R={metrics["recall@k"]:.4f} NDCG={metrics["ndcg@k"]:.4f}')
+    
+    # Free remaining large objects
+    del evaluator, recs, test_items
+    gc.collect()
     
     # Save locally
     os.makedirs(output_dir, exist_ok=True)
@@ -241,80 +360,19 @@ def evaluate_model(model_name: str, preprocessed_dir: str, models_dir: str,
     
     return results
 
-
-def evaluate_recommender(
-    model_name: str,
-    recommendations: Dict[int, List[int]],
-    test_events_df: pl.DataFrame,
-    catalog_df: pl.DataFrame,
-    all_events_df: pl.DataFrame,
-    total_users: int,
-    k_values: List[int],
-    output_file: str = None
-) -> Dict:
+def compare_models(results_dir: str) -> pl.DataFrame:
     '''
-    Evaluate a recommender given pre-generated recommendations.
-    
-    Args:
-        model_name: Name of the model being evaluated
-        recommendations: Dict mapping user_id to list of recommended track_ids
-        test_events_df: Test events DataFrame
-        catalog_df: Track catalog DataFrame
-        all_events_df: All events DataFrame (for popularity calculations)
-        total_users: Total number of users in the dataset
-        k_values: List of K values to evaluate at
-        output_file: Optional path to save results as JSON
-    
-    Returns:
-        Dict with evaluation results
+        Compare multiple evaluated models from the results directory and save the comparison to a parquet file.
     '''
-    logger.info(f'Evaluating {model_name}')
     
-    # Build test set
-    test_items = defaultdict(set)
-    for row in test_events_df.iter_rows(named=True):
-        test_items[row['user_id']].add(row['track_id'])
-    
-    # Create evaluator
-    evaluator = RecommendationEvaluator(catalog_df, all_events_df)
-    
-    # Compute metrics for each k
-    results = {
-        'model_name': model_name,
-        'evaluation_date': datetime.now().isoformat(),
-        'total_users': total_users,
-        'evaluated_users': len(recommendations),
-        'metrics': {}
-    }
-    
-    for k in k_values:
-        metrics = evaluator.evaluate(recommendations, test_items, k)
-        results['metrics'][f'k={k}'] = metrics
-        logger.info(f'  K={k}: P={metrics[f"precision@{k}"]:.4f} R={metrics[f"recall@{k}"]:.4f} NDCG={metrics[f"ndcg@{k}"]:.4f}')
-    
-    # Save to file if requested
-    if output_file:
-        os.makedirs(os.path.dirname(output_file), exist_ok=True)
-        with open(output_file, 'w') as f:
-            json.dump(results, f, indent=2)
-        logger.info(f'Saved results to {output_file}')
-    
-    return results
-
-
-def compare_models(result_files: List[str], output_file: str = None) -> pl.DataFrame:
-    '''
-    Compare multiple evaluated models from their result files.
-    
-    Args:
-        result_files: List of paths to evaluation result JSON files
-        output_file: Optional path to save comparison as CSV
-    
-    Returns:
-        Polars DataFrame with model comparison
-    '''
     logger.info('Comparing models')
     
+    result_files = [
+        os.path.join(results_dir, 'evaluation_popularity.json'),
+        os.path.join(results_dir, 'evaluation_collaborative.json'),
+        os.path.join(results_dir, 'evaluation_ranked.json'),
+    ]
+
     rows = []
     for path in result_files:
         if not os.path.exists(path):
@@ -337,48 +395,62 @@ def compare_models(result_files: List[str], output_file: str = None) -> pl.DataF
         logger.warning('No results to compare')
         return pl.DataFrame()
     
-    comparison_df = pl.DataFrame(rows)
+    models_comparison = pl.DataFrame(rows)
     
     # Save to file if requested
-    if output_file:
-        os.makedirs(os.path.dirname(output_file), exist_ok=True)
-        comparison_df.write_csv(output_file)
-        logger.info(f'Saved comparison to {output_file}')
+    models_comparison_path = os.path.join(results_dir, 'models_comparison.parquet')
+    os.makedirs(os.path.dirname(models_comparison_path), exist_ok=True)
+    models_comparison.write_parquet(models_comparison_path)
+    logger.info(f'Saved comparison to {models_comparison_path}')
     
-    return comparison_df
+    return models_comparison
 
-
-def compare_models_legacy(output_dir: str) -> None:
+# ---------- Wrapper for main.py (reads from env vars) ---------- #
+def run_evaluation(model='all'):
     '''
-    Compare evaluated models (legacy version for CLI usage).
+        Run model evaluation.
     '''
-    logger.info('Comparing models')
-    for name in ['popularity', 'collaborative', 'ranked']:
-        path = f'{output_dir}/evaluation_{name}.json'
-        if os.path.exists(path):
-            with open(path) as f:
-                data = json.load(f)
-            logger.info(f'{name}: {data["metrics"]}')
+    logger.info('Running recommendation models evaluation pipeline')
 
+    # Check required environment variables
+    required_env_vars = [
+        'PREPROCESSED_DATA_DIR', 
+        'RESULTS_DIR', 
+        'MODELS_DIR',
+        'EVALUATION_K_VALUES',
+        'EVALUATION_SAMPLE_USERS',
+        'EVALUATION_N_RECS',
+        'EVALUATION_MODELS'
+    ]
+    missing_vars = [var for var in required_env_vars if os.getenv(var) is None]
+    if missing_vars:
+        raise EnvironmentError(f'Missing required environment variables: {", ".join(missing_vars)}')
+
+    # Load from env
+    preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR')
+    results_dir = os.getenv('RESULTS_DIR')
+    models_dir = os.getenv('MODELS_DIR')
+    k_values = [int(k.strip()) for k in os.getenv('EVALUATION_K_VALUES').split(',')]
+    sample_users = int(os.getenv('EVALUATION_SAMPLE_USERS'))
+    n_recs = int(os.getenv('EVALUATION_N_RECS'))
+    
+    # Use arg or env for model selection
+    model_selection = model or os.getenv('EVALUATION_MODELS', 'all')
+    models = ['popularity', 'collaborative', 'ranked'] if model_selection == 'all' else [model_selection]
+    
+    for m in models:
+        _evaluate_model_impl(m, preprocessed_dir, models_dir, k_values, results_dir, n_recs, sample_users)
+    
+    if model_selection == 'all':
+        compare_models(results_dir)
+    
+    gc.collect()
+    logger.info('Recommendation models evaluation pipeline completed')
 
 # ---------- Main entry point ---------- #
 if __name__ == '__main__':
-        
     parser = argparse.ArgumentParser(description='Evaluate recommendation models')
     parser.add_argument('--model', choices=['popularity', 'collaborative', 'ranked', 'all'], default='all')
-    parser.add_argument('--compare', action='store_true')
     args = parser.parse_args()
     
-    preprocessed_dir = args.preprocessed_dir or os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
-    models_dir = os.getenv('MODELS_DIR', './models')
-    output_dir = os.getenv('RESULTS_DIR', './results')
-    k_values = os.getenv('K_VALUES', 5)
-    sample_users = os.getenv('SAMPLE_USERS', 5000)
-    
-    models = ['popularity', 'collaborative', 'ranked'] if args.model == 'all' else [args.model]
-    
-    for model in models:
-        evaluate_model(model, preprocessed_dir, models_dir, k_values, sample_users)
-    
-    if args.compare or args.model == 'all':
-        compare_models_legacy(output_dir)
+    run_evaluation(args.model)

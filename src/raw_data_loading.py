@@ -96,14 +96,15 @@ def download_all_raw() -> bool:
         if not success:
             failed = True
     
+    # Free memory after downloading
+    gc.collect()
+    
     if failed:
         logger.error('Failed to download one or more raw datasets')
         return False
     else:
         logger.info('All raw datasets downloaded successfully')
         return True
-    
-    gc.collect()
 
 # ---------- Main entry point ---------- #
 if __name__ == '__main__':

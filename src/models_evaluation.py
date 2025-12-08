@@ -9,6 +9,7 @@
 
 # ---------- Imports ---------- #
 import os
+import gc
 import logging
 from dotenv import load_dotenv
 from typing import Dict, List
@@ -38,43 +39,82 @@ def generate_popular_recommendations(
     train_events: pl.DataFrame,
     test_events: pl.DataFrame,
     catalog: pl.DataFrame,
-    n: int = 20,
+    n: int = 100,
+    n_recs: int = 10,
     method: str = 'listen_count'
 ) -> Dict[int, List[int]]:
     '''
-    Generate popularity-based recommendations.
+        Generate popularity-based recommendations for each test user using PopularityRecommender.
+        
+        1. Check if top_popular.parquet exists, load it, otherwise compute from train_events
+        2. For each test user, filter out tracks they've listened to
+        3. Return top N recommendations per user
     '''
     logger.info(f'Generating popular recommendations (method={method})')
     
-    # Train popularity model
-    recommender = PopularityRecommender(method=method)
-    recommender.fit(train_events)
+    # Check if popular tracks exist
+    results_dir = os.getenv('RESULTS_DIR', './results')
+    popularity_path = os.path.join(results_dir, 'top_popular.parquet')
+    
+    # Initialize recommender and load/compute popularity
+    recommender = PopularityRecommender()
+    
+    if os.path.exists(popularity_path):
+        logger.info(f'Loading popular tracks from {popularity_path}')
+        recommender.top_tracks = pl.read_parquet(popularity_path)
+        logger.info(f'Loaded {recommender.top_tracks.height:,} popular tracks')
+    else:
+        # Compute from preprocessed_dir (uses full events.parquet)
+        preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+        logger.info(f'No file found, computing popularity using PopularityRecommender')
+        recommender.fit(
+            preprocessed_dir=preprocessed_dir,
+            method=method,
+            with_metadata=False,
+            n=n
+        )
+    
+    # Build user listening history from train events (computed once)
+    user_listened = defaultdict(set)
+    for row in train_events.iter_rows(named=True):
+        user_listened[row['user_id']].add(row['track_id'])
     
     # Get test users
     test_users = test_events['user_id'].unique().to_list()
-    logger.info(f'Generating for {len(test_users):,} test users')
+    logger.info(f'Generating recommendations for {len(test_users):,} test users')
     
-    recommendations = {}
-    
+    # Generate recommendations for each user using recommender.recommend()
+    popularity_based_rec = {}
     for i, user_id in enumerate(test_users):
         if i % 10000 == 0 and i > 0:
             logger.info(f'Generated {i:,} / {len(test_users):,}')
         
-        recs = recommender.recommend(user_id, train_events, n=n, filter_listened=True)
-        recommendations[user_id] = recs
+        # Use pre-computed user_listened for efficiency (no file loading)
+        recs = recommender.recommend(
+            user_id=user_id,
+            n_recs=n_recs,
+            user_listened=user_listened.get(user_id, set())
+        )
+        popularity_based_rec[user_id] = recs
     
-    logger.info(f'Generated {len(recommendations):,} recommendation lists')
-    return recommendations
+    gc.collect()
+    logger.info(f'Generated {len(popularity_based_rec):,} recommendation lists')
+    return popularity_based_rec
 
 
 def generate_als_recommendations(
     model_path: str,
     train_matrix,
     test_events: pl.DataFrame,
-    n: int
+    n: int = 10,
 ) -> Dict[int, List[int]]:
     '''
-    Generate ALS-based recommendations.
+        Generate ALS-based recommendations.
+        
+        1. Load the ALS model
+        2. Get the test users
+        3. Generate recommendations for each test user
+        4. Return the recommendations
     '''
     logger.info(f'Generating ALS recommendations from {model_path}')
     
@@ -85,18 +125,20 @@ def generate_als_recommendations(
     test_users = test_events['user_id'].unique().to_list()
     logger.info(f'Generating for {len(test_users):,} test users')
     
-    recommendations = {}
+    als_based_rec = {}
     
     for i, user_id in enumerate(test_users):
         if i % 10000 == 0 and i > 0:
-            logger.info(f'  Generated {i:,} / {len(test_users):,}')
+            logger.info(f'  Generated {i:,} / {len(test_users):,}')    
         
+        # Generate recommendations for the user
         recs = als_model.recommend(user_id, train_matrix, n=n, filter_already_liked=True)
-        recommendations[user_id] = [track_id for track_id, _ in recs]
+        
+        # Extract the track_ids
+        als_based_rec[user_id] = [track_id for track_id, _ in recs]
     
-    logger.info(f'Generated {len(recommendations):,} recommendation lists')
-    return recommendations
-
+    logger.info(f'Generated {len(als_based_rec):,} recommendation lists')
+    return als_based_rec
 
 def apply_ranking(
     recommendations: Dict[int, List[int]],

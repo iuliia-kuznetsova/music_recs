@@ -1,14 +1,15 @@
 '''
     CLI entry point for music recommendation system.
 
-    Usage:
-        python3 -m src.main
-        python3 -m src.main --raw-dir /path/to/raw --preprocessed-dir /path/to/output
-        python3 -m src.main --skip-download  # Skip data download if already present
+    Usage examples:
+        python3 -m src.main # run full pipeline
+        python3 -m src.main --skip-download  # skip raw data download if already present
 '''
 
+# ---------- Imports ---------- #
 import os
 import sys
+import gc
 import argparse
 from scipy.sparse import load_npz
 import logging
@@ -20,11 +21,11 @@ import polars as pl
 from src.raw_data_loading import load_env_with_logging, download_all_raw
 from src.data_preprocessing import run_preprocessing
 from src.train_test_split import run_train_test_split
-from src.popularity_based_rec import find_top_popular_tracks
-from src.collaborative_rec import find_als_recommendations, find_similar_tracks
+from src.popularity_based_rec import generate_popularity_recommendations
+from src.collaborative_rec import train_als_model
 from src.similar_based_als import get_similar_tracks
-from src.rec_ranking import rank_recommendations
-from src.models_evaluation import evaluate_models
+from src.rec_ranking import run_ranking_pipeline
+from src.rec_evaluation import run_evaluation
 
 # ---------- Logging setup ---------- #
 # Create logs directory if it doesn't exist
@@ -69,22 +70,14 @@ def main():
         2. Download raw data (if needed)
         3. Preprocess data
         4. Split data into train/test sets
-        5. Train models
+        5. Train models: popularity based, als, ranking CatBoost
         6. Evaluate models
         7. Generate final recommendations
     '''
 
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(
-        description='Music Recommendation System - Data Loading & Preprocessing Pipeline',
-    )
-    
-    parser.add_argument(
-        '--skip-download',
-        action='store_true',
-        help='Skip downloading raw data if files already exist'
-    )
-    
+    parser = argparse.ArgumentParser(description='Music Recommendation System')
+    parser.add_argument('--skip-download', type=bool, default=False)
     args = parser.parse_args()
     
     # ---------- Step 1: Load environment variables ---------- #
@@ -206,57 +199,71 @@ def main():
     logger.info(f'INFO: Test events dataframe shape: {test_events_shape}')
     logger.info(f'INFO: Train matrix shape: {train_matrix_shape}')
     logger.info(f'INFO: Test matrix shape: {test_matrix_shape}')
-     
+
+    # ---------- Step 5: Find popularity_based recommendations ---------- #     
     print('\n' + '='*60)
     logger.info('STEP 5: Finding popularity-based recommendations')
     print('='*60)
     
     try:
-        find_top_popular_tracks(preprocessed_dir)
+        n_popular = int(os.getenv('POPULARITY_TOP_N', 100))
+        generate_popularity_recommendations(preprocessed_dir, n=n_popular)
     except Exception as e:
         logger.error(f'ERROR: Finding popular tracks failed: {e}')
         traceback.print_exc()
         sys.exit(1)
 
+    # ---------- Step 6: Find ALS recommendations ---------- #
     print('\n' + '='*60)
     logger.info('STEP 6: Finding ALS recommendations')
     print('='*60)
     
     try:
-        find_als_recommendations(preprocessed_dir)
+        train_als_model(preprocessed_dir)
+        # Free memory after ALS training
+        gc.collect()
     except Exception as e:
         logger.error(f'ERROR: Finding ALS recommendations failed: {e}')
         traceback.print_exc()
         sys.exit(1)
 
+    # ---------- Step 7: Find similarity-based recommendations ---------- #
     print('\n' + '='*60)
     logger.info('STEP 7: Finding similarity-based recommendations')
     print('='*60)
     
     try:
-        find_similar_tracks(preprocessed_dir)
+        similar_finder = get_similar_tracks()
+        similar_finder.find_similar_to_all()
+        # Free memory after similar tracks computation
+        del similar_finder
+        gc.collect()
     except Exception as e:
         logger.error(f'ERROR: Finding similarity-based recommendations failed: {e}')
         traceback.print_exc()
         sys.exit(1)
 
+    # ---------- Step 8: Rank recommendations ---------- #
     print('\n' + '='*60)
     logger.info('STEP 8: Ranking recommendations')
     print('='*60)
     
     try:
-        rank_recommendations()
+        run_ranking_pipeline()
+        gc.collect()
     except Exception as e:
         logger.error(f'ERROR: Ranking recommendations failed: {e}')
         traceback.print_exc()
         sys.exit(1)
 
+    # ---------- Step 9: Evaluate models ---------- #
     print('\n' + '='*60)
-    logger.info('STEP 9: Models evaluation')
+    logger.info('STEP 9: Evaluating models')
     print('='*60)
     
     try:
-        evaluate_models()
+        run_evaluation()
+        gc.collect()
     except Exception as e:
         logger.error(f'ERROR: Models evaluation failed: {e}')
         traceback.print_exc()

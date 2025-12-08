@@ -400,12 +400,20 @@ def train_als_model(preprocessed_dir=None):
     test_matrix = load_npz(test_path)
     recommender.evaluate(train_matrix, test_matrix, k=10, sample_users=10000)
     
+    # Free test matrix after evaluation
+    del test_matrix
+    gc.collect()
+    
     logger.info(f'Generating personal recommendations (n={n_recommendations})')
     recommender.generate_recommendations(train_matrix, n=n_recommendations)
 
     logger.info('Saving ALS model')
     model_path = os.path.join(models_dir, 'als_model.pkl')
     recommender.save(model_path)
+
+    # Free train matrix and encoders after saving
+    del train_matrix, encoders
+    gc.collect()
 
     logger.info('ALS model training complete')
 
