@@ -1,5 +1,13 @@
-# mle_projects/mle-project-sprint-4-v001/src/data/load_data.py
- 
+'''
+    Raw data loading
+
+    This module provides functionality to load raw data from the environment variables.
+
+    Usage examples:
+    python -m src.raw_data_loading # load raw data from the environment variables
+'''
+
+# ---------- Imports ---------- #
 import os
 import logging
 import gc
@@ -7,17 +15,21 @@ import requests
 
 from dotenv import load_dotenv
 
+from src.logging_set_up import setup_logging
+
 # ---------- Logging setup ---------- #
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] %(message)s',
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging('raw_data_loading')
 
 # ---------- Load environment variables ---------- #
 def load_env_with_logging():
     '''
         Load .env file from config/ directory and log status info
+
+        Args:
+        - None
+
+        Returns:
+        - True if the environment variables were loaded successfully, False otherwise
     '''
     # Load from config/.env (relative to project root)
     config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
@@ -51,6 +63,13 @@ def load_env_with_logging():
 def download_file(url: str, save_path: str) -> bool:
     '''
         Download a file from URL and save it locally.
+
+        Args:
+        - url - URL of the file to download
+        - save_path - path to save the file
+
+        Returns:
+        - True if the file was downloaded successfully, False otherwise
     '''
     
     logger.info(f'Downloading: {url}')
@@ -78,6 +97,12 @@ def download_file(url: str, save_path: str) -> bool:
 def download_all_raw() -> bool:
     '''
         Download all raw datasets from the environment variables.
+
+        Args:
+        - None
+
+        Returns:
+        - True if all raw datasets were downloaded successfully, False otherwise
     '''
 
     logger.info('Downloading all raw datasets')
@@ -108,7 +133,12 @@ def download_all_raw() -> bool:
 
 # ---------- Main entry point ---------- #
 if __name__ == '__main__':
+
+    logger.info('Running raw data loading pipeline')
+
     load_env_with_logging()
     download_all_raw()
+
+    logger.info('Raw data loading pipeline completed')
 
 __all__ = ['load_env_with_logging', 'download_file', 'download_all_raw']

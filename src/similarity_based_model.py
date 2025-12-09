@@ -14,8 +14,8 @@
     - similar_tracks_index.pkl - similar tracks index for all tracks
 
     Usage:
-    python -m src.similar_based_als --all-tracks
-    python -m src.similar_based_als --track-id 1234567890
+    python -m src.similar_based_als --all-tracks # build full index for all tracks
+    python -m src.similar_based_als --track-id 1234567890 # find similar tracks for a specific track
 '''
 
 # ---------- Imports ---------- #
@@ -25,13 +25,15 @@ import logging
 import argparse
 import pickle
 from pathlib import Path
+from typing import List, Tuple
 
 import numpy as np
 import polars as pl
 from dotenv import load_dotenv
 
-from src.collaborative_rec import load_als_model
-from src.s3_utils import upload_recommendations_to_s3
+from src.logging_set_up import setup_logging
+from src.s3_loading import upload_recommendations_to_s3
+from src.als_model import load_als_model
 
 # ---------- Load environment variables ---------- #
 # Load from config/.env (relative to project root)
@@ -39,11 +41,7 @@ config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 load_dotenv(os.path.join(config_dir, '.env'))
 
 # ---------- Logging setup ---------- #
-logging.basicConfig(
-    level=logging.INFO, 
-    format='[%(asctime)s] [%(levelname)s] %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging('similarity_based_model')
 
 # ---------- Similar Tracks Finder using ALS model's built-in similar_items method ---------- #
 class ALSSimilarTracks:
@@ -75,6 +73,12 @@ class ALSSimilarTracks:
     def fit(self, als_model):
         '''
             Load from trained ALS model.
+
+            Args:
+            - als_model - ALS model instance
+
+            Returns:
+            - None
         '''
 
         self.model = als_model.model
@@ -82,10 +86,21 @@ class ALSSimilarTracks:
         self.track_decoder = als_model.track_decoder
         logger.info(f'Loaded {len(self.track_decoder):,} tracks')
         
-    def find_similar_to_one (self, track_id, n=10):
+    def recommend(self, track_id: int, n_recs: int=None) -> List[Tuple[int, float]]:
         '''
-            Find n most similar tracks to a singlegiven track_id.
+            Recommend n most similar tracks to a single given track_id.
+
+            Args:
+            - track_id - track id to recommend similar tracks for
+            - n_recs - number of similar tracks to return
+
+            Returns:
+            - list of similar track_ids and scores
         '''
+
+        # Load defaults from environment if not provided
+        if n_recs is None:
+            n_recs = int(os.getenv('SIMILARITY_N_RECS', 10))
 
         logger.info(f'Finding similar tracks to {track_id}')
 
@@ -98,7 +113,7 @@ class ALSSimilarTracks:
         track_idx = self.track_encoder[track_id]
 
         # Get similar items
-        indices, scores = self.model.similar_items(track_idx, N=n+1)
+        indices, scores = self.model.similar_items(track_idx, N=n_recs+1)
         
         # Decode track indices to ids
         # Skip first (self) and decode
@@ -108,20 +123,33 @@ class ALSSimilarTracks:
             if int(idx) in self.track_decoder
         ]
     
-    def find_similar_to_all(self, top_k=None, batch_size=50000):
+    def generate_similarity_recommendations(
+        self, 
+        top_k: int = None, 
+        batch_size: int = None, 
+        results_dir: str = None
+        ) -> None:
         '''
-            Build full similar tracks index for all tracks using batched processing.
-            
-            Args:
-                top_k: Number of similar tracks per item (default from env SIMILAR_TRACKS_TOP_K)
-                batch_size: Number of tracks to process per batch (default 50K)
-        '''
+            Generate similarity recommendations for all tracks and save to parquet.
+            Uses batch processing for better performance.
 
-        # Get top k
+            Args:
+            - top_k - number of similar tracks per item
+            - batch_size - number of tracks to process per batch
+            - results_dir - path to results directory
+
+            Returns:
+            - None
+        '''
+        # Load defaults from environment if not provided
         if top_k is None:
-            top_k = int(os.getenv('SIMILAR_TRACKS_TOP_K', 10))
+            top_k = int(os.getenv('SIMILARITY_TOP_K', 10))
+        if batch_size is None:
+            batch_size = int(os.getenv('SIMILARITY_BATCH_SIZE', 50000))
+        if results_dir is None:
+            results_dir = os.getenv('RESULTS_DIR', './results')
         
-        logger.info(f'Building full index: top {top_k} per track (batch_size={batch_size:,})')
+        logger.info(f'Building similarity indexes: top {top_k} per track (batch_size={batch_size:,})')
         
         # Get all indices
         all_indices = np.array(list(self.track_decoder.keys()))
@@ -131,7 +159,6 @@ class ALSSimilarTracks:
         logger.info(f'Computing similar items for {n_tracks:,} tracks in {n_batches} batches')
         
         # Setup checkpoint directory for batch persistence
-        results_dir = os.getenv('RESULTS_DIR', './results')
         checkpoint_dir = Path(results_dir) / 'similar_batches_checkpoint'
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         
@@ -186,7 +213,7 @@ class ALSSimilarTracks:
         logger.info(f'Completed processing all {n_batches} batches')
         
         # Merge all batches into final result
-        logger.info('Merging all batches into final result...')
+        logger.info('Merging all batches')
         similar = {}
         for batch_idx in range(n_batches):
             batch_file = checkpoint_dir / f'batch_{batch_idx}.pkl'
@@ -240,20 +267,24 @@ class ALSSimilarTracks:
 
         return None
 
-def get_similar_tracks(models_dir=None):
+# ---------- Wrapper function for similarity recommendations---------- #
+def similarity_based_recommendations() -> None:
     '''
-        Load ALS model and return ALSSimilarTracks instance.
+        Generate similarity recommendations for all tracks.
+
+        Args:
+        - models_dir - path to models directory
+
+        Returns:
+        - None
     '''
 
-    if models_dir is None:
-        models_dir = os.getenv('MODELS_DIR', './models')
-    
-    als_model = load_als_model(f'{models_dir}/als_model.pkl')
-    
+    als_model = load_als_model()
     finder = ALSSimilarTracks()
     finder.fit(als_model)
-    
-    return finder
+    finder.generate_similarity_recommendations()
+
+    return None
 
 # ---------- Main entry point ---------- #
 if __name__ == '__main__':
@@ -263,23 +294,31 @@ if __name__ == '__main__':
     parser.add_argument('--all-tracks', action='store_true', help='Build full index for all tracks')
     args = parser.parse_args()
 
-    logger.info('Starting similar tracks finder')
-    finder = get_similar_tracks()
+    logger.info('Running similarity-based model pipeline')
+
+    # Check required environment variables
+    required_env_vars = [
+        'PREPROCESSED_DATA_DIR', 
+        'RESULTS_DIR', 
+        'MODELS_DIR', 
+        'SIMILARITY_TOP_K', 
+        'SIMILARITY_BATCH_SIZE'
+    ]
+
+    missing_vars = [var for var in required_env_vars if os.getenv(var) is None]
+    if missing_vars:
+        logger.error(f'Missing required environment variables: {", ".join(missing_vars)}')
+        raise EnvironmentError(f'Missing required environment variables: {", ".join(missing_vars)}')
+
+    # Load config from environment
+    models_dir = os.getenv('MODELS_DIR', './models')
+    top_k = int(os.getenv('SIMILARITY_TOP_K', 10))
+    batch_size = int(os.getenv('SIMILARITY_BATCH_SIZE', 50000))
+    n_recs = int(os.getenv('SIMILARITY_N_RECS', 10))
+
+    similarity_based_recommendations()
     
-    if args.all_tracks:
-        finder.find_similar_to_all()
-    elif args.track_id:
-        similar = finder.find_similar_to_one(args.track_id)
-        print(f'Similar tracks to {args.track_id}:')
-        for track_id, score in similar:
-            print(f'{track_id}: {score:.4f}')
-    else:
-        parser.print_help()
-        print('\nExamples:')
-        print('  python -m src.similar_based_als --all-tracks')
-        print('  python -m src.similar_based_als --track-id 1234567890')
-    
-    logger.info('Similar tracks finder complete')
+    logger.info('Similarity-based model pipeline completed')
 
 # ---------- All exports ---------- #
-__all__ = ['ALSSimilarTracks', 'get_similar_tracks']
+__all__ = ['ALSSimilarTracks', 'similarity_based_recommendations']

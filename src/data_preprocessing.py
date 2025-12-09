@@ -47,7 +47,8 @@ import polars as pl
 from scipy.sparse import csr_matrix, save_npz
 from dotenv import load_dotenv
 
-from src.s3_utils import upload_data_to_s3
+from src.s3_loading import upload_data_to_s3
+from src.logging_set_up import setup_logging
 
 # ---------- Load environment variables ---------- #
 # Load from config/.env (relative to project root)
@@ -55,16 +56,18 @@ config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 load_dotenv(os.path.join(config_dir, '.env'))
 
 # ---------- Logging setup ---------- #
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] %(message)s',
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging('data_preprocessing')
 
 # ---------- Data transformation helpers ---------- #
 def standardize_text(col: str) -> pl.Expr:
     '''
         Basic text cleaning: lowercase, remove punctuation, trim.
+
+        Args:
+        - col - column to standardize
+
+        Returns:
+        - standardized column
     '''
     return (
         pl.col(col)
@@ -79,6 +82,12 @@ def standardize_text(col: str) -> pl.Expr:
 def clean_name(col: str) -> pl.Expr:
     '''
         Clean entity names: remove brackets, feat., ft., featuring, versions.
+
+        Args:
+        - col - column to clean
+
+        Returns:
+        - cleaned column
     '''
     return (
         pl.col(col)
@@ -95,6 +104,12 @@ def clean_name(col: str) -> pl.Expr:
 def normalize_title(col: str) -> pl.Expr:
     '''
         Track name normalization for grouping purposes
+
+        Args:
+        - col - column to normalize
+
+        Returns:
+        - normalized column
     '''
     return (
         pl.col(col)
@@ -113,6 +128,12 @@ def normalize_title(col: str) -> pl.Expr:
 def load_raw_data(raw_dir: str):
     '''
         Load raw data.
+
+        Args:
+        - raw_dir - directory to load raw data from
+
+        Returns:
+        - tuple of raw data
     '''
     logger.info('Loading raw data from %s', raw_dir)
     
@@ -130,6 +151,13 @@ def load_raw_data(raw_dir: str):
 def build_items_df(raw_dir: str, preprocessed_dir: str):
     '''
         Build items dataframe.
+
+        Args:
+        - raw_dir - directory to load raw data from
+        - preprocessed_dir - directory to save preprocessed data to
+
+        Returns:
+        - None
     '''
 
     # Load raw data
@@ -157,6 +185,14 @@ def build_items_df(raw_dir: str, preprocessed_dir: str):
     def make_catalog(entity_type: str, id_col: str, name_col: str):
         '''
             Build entity catalog.
+
+            Args:
+            - entity_type - type of entity
+            - id_col - column to use for the entity ID
+            - name_col - column to use for the entity name
+
+            Returns:
+            - entity catalog
         '''
         return (
             catalog
@@ -374,6 +410,12 @@ def build_items_df(raw_dir: str, preprocessed_dir: str):
 def build_tracks_catalog(preprocessed_dir: str):
     '''
         Build tracks catalog.
+
+        Args:
+        - preprocessed_dir - directory to load preprocessed data from
+
+        Returns:
+        - None
     '''
 
     logger.info('Building catalog')
@@ -406,6 +448,13 @@ def build_tracks_catalog(preprocessed_dir: str):
 def build_events_df(raw_dir: str, preprocessed_dir: str):
     '''
         Build events dataframe.
+
+        Args:
+        - raw_dir - directory to load raw data from
+        - preprocessed_dir - directory to load preprocessed data from
+
+        Returns:
+        - None
     '''
 
     logger.info('Building events dataframe')
@@ -457,6 +506,12 @@ def build_events_df(raw_dir: str, preprocessed_dir: str):
 def create_label_encoders(preprocessed_dir: str):
     '''
         Create label encoders and sparse interaction matrix.
+
+        Args:
+        - preprocessed_dir - directory to load preprocessed data from
+
+        Returns:
+        - None
     '''
     logger.info('Creating label encoders')
     
@@ -507,6 +562,12 @@ def create_label_encoders(preprocessed_dir: str):
 #    def create_sparse_interaction_matrix(preprocessed_dir: str):
 #    '''
 #        Create sparse interaction matrix.
+#
+#        Args:
+#        - preprocessed_dir - directory to load preprocessed data from
+#
+#        Returns:
+#        - None
 #    '''
 #    logger.info('Creating sparse interaction matrix')
 #    
@@ -560,11 +621,25 @@ def create_label_encoders(preprocessed_dir: str):
 #    return None
 
 # ---------- Data preprocessing pipeline ---------- #
-def run_preprocessing(raw_dir: str, preprocessed_dir: str):
+def run_preprocessing(raw_dir: str=None, preprocessed_dir: str=None):
     '''
         Data preprocessing pipeline.
         Loads raw data and runs the full preprocessing pipeline.
+
+        Args:
+        - raw_dir - directory to load raw data from
+        - preprocessed_dir - directory to save preprocessed data to
+
+        Returns:
+        - None
     '''
+
+    # Load defaults from environment if not provided
+    if raw_dir is None:
+        raw_dir = os.getenv('RAW_DATA_DIR', './data/raw')
+    if preprocessed_dir is None:
+        preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', './data/preprocessed')
+
     logger.info('Starting raw data preprocessing')
     
     build_items_df(raw_dir, preprocessed_dir)
@@ -591,7 +666,19 @@ if __name__ == '__main__':
     parser.add_argument('--create-label-encoders', action='store_true', help='Create label encoders only')
     
     args = parser.parse_args()
-    
+
+    logger.info('Running data preprocessing pipeline')
+
+    # Check required environment variables
+    required_env_vars = [
+        'RAW_DATA_DIR',
+        'PREPROCESSED_DATA_DIR',
+    ]
+    missing_vars = [var for var in required_env_vars if os.getenv(var) is None]
+    if missing_vars:
+        logger.error(f'Missing required environment variables: {", ".join(missing_vars)}')
+        raise EnvironmentError(f'Missing required environment variables: {", ".join(missing_vars)}')
+
     raw_dir = os.getenv('RAW_DATA_DIR', './data/raw')
     preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', './data/preprocessed')
     
@@ -624,6 +711,8 @@ if __name__ == '__main__':
         # Run full pipeline
         logger.info('Running full preprocessing pipeline')
         run_preprocessing(raw_dir, preprocessed_dir)
+
+    logger.info('Data preprocessing pipeline completed')
 
 # ---------- All exports ---------- #
 __all__ = ['run_preprocessing']

@@ -30,6 +30,7 @@ import os
 import gc
 import pickle
 import logging
+import argparse
 from datetime import date
 from typing import Tuple
 
@@ -38,17 +39,15 @@ import numpy as np
 from scipy.sparse import csr_matrix, save_npz
 from dotenv import load_dotenv
 
+from src.logging_set_up import setup_logging
+
 # ---------- Load environment variables ---------- #
 # Load from config/.env (relative to project root)
 config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
 load_dotenv(os.path.join(config_dir, '.env'))
 
 # ---------- Logging setup ---------- #
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] %(message)s',
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging('train_test_split')
 
 # ---------- Calculate date threshold ---------- #
 def calculate_date_threshold(preprocessed_dir: str, train_ratio: float = None) -> date:
@@ -57,6 +56,13 @@ def calculate_date_threshold(preprocessed_dir: str, train_ratio: float = None) -
         
         First checks DATE_THRESHOLD env variable.
         If not set, calculates threshold as quantile of last_listen dates.
+
+        Args:
+        - preprocessed_dir - directory to load preprocessed data from
+        - train_ratio - ratio of train/test split (default: 0.8)
+
+        Returns:
+        - date threshold
     '''
     
     # Check if DATE_THRESHOLD is set in environment
@@ -107,6 +113,13 @@ def calculate_date_threshold(preprocessed_dir: str, train_ratio: float = None) -
 def split_by_date_threshold(preprocessed_dir: str, date_threshold: date) -> Tuple[pl.DataFrame, pl.DataFrame]:
     '''
         Split events into train/test sets based on date threshold.
+
+        Args:
+        - preprocessed_dir - directory to load preprocessed data from
+        - date_threshold - date threshold for train/test split
+
+        Returns:
+        - None
     '''
 
     logger.info('Loading events from %s', preprocessed_dir)
@@ -155,13 +168,19 @@ def split_by_date_threshold(preprocessed_dir: str, date_threshold: date) -> Tupl
     return None
 
 # ---------- Create sparse matrix ---------- #
-def create_sparse_matrix(preprocessed_dir: str) -> csr_matrix:
+def create_sparse_matrix(preprocessed_dir: str, models_dir: str) -> csr_matrix:
     '''
         Create sparse interaction matrix from dataframe with columns [user_id, track_id, listen_count].
+
+        Args:
+        - preprocessed_dir - directory to load preprocessed data from
+        - models_dir - directory to load models from
+
+        Returns:
+        - None
     '''
 
-    logger.info('Loading label encoders from %s', preprocessed_dir)
-    models_dir = os.getenv('MODELS_DIR', './models')
+    logger.info('Loading label encoders from %s', models_dir)
     with open(f'{models_dir}/label_encoders.pkl', 'rb') as f:
         encoders = pickle.load(f)
 
@@ -253,20 +272,68 @@ def create_sparse_matrix(preprocessed_dir: str) -> csr_matrix:
     return None
     
 # ---------- Main entry point ---------- #
-def run_train_test_split(preprocessed_dir: str):
+def run_train_test_split(preprocessed_dir: str=None, models_dir: str=None):
     '''
-        Main entry point for the train/test split pipeline.
-        Loads events and runs the train/test split pipeline.
+        Run train/test split pipeline.
+
+        Args:
+        - preprocessed_dir - directory to load preprocessed data from
+        - models_dir - directory to load models from (default: from env)
+
+        Returns:
+        - None
     '''
-    logger.info('Starting train/test split')
+
+    # Load defaults from environment if not provided
+    if preprocessed_dir is None:
+        preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+    if models_dir is None:
+        models_dir = os.getenv('MODELS_DIR', './models')
     
     date_threshold = calculate_date_threshold(preprocessed_dir)
     split_by_date_threshold(preprocessed_dir, date_threshold)
-    create_sparse_matrix(preprocessed_dir)
+    create_sparse_matrix(preprocessed_dir, models_dir)
 
     logger.info('Successfully done with train/test split')
     
     return None
+
+# ---------- Main entry point ---------- #
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Train/Test Split Pipeline')
+    parser.add_argument('--calculate-date-threshold', action='store_true', help='Calculate date threshold only')
+    parser.add_argument('--run-train-test-split', action='store_true', help='Run train/test split pipeline')
+    args = parser.parse_args()
+
+    logger.info('Running train/test split pipeline')
+    
+    # Check required environment variables
+    required_env_vars = [
+        'PREPROCESSED_DATA_DIR',
+        'MODELS_DIR',
+        'TRAIN_RATIO',
+        'TRAIN_DATE_THRESHOLD',
+    ]
+    missing_vars = [var for var in required_env_vars if os.getenv(var) is None]
+    if missing_vars:
+        logger.error(f'Missing required environment variables: {", ".join(missing_vars)}')
+        raise EnvironmentError(f'Missing required environment variables: {", ".join(missing_vars)}')
+
+    preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR')
+    models_dir = os.getenv('MODELS_DIR')
+    train_ratio = float(os.getenv('TRAIN_RATIO'))
+    train_date_threshold = os.getenv('TRAIN_DATE_THRESHOLD')
+
+    if args.calculate_date_threshold:
+        date_threshold = calculate_date_threshold(preprocessed_dir, train_ratio)
+        split_by_date_threshold(preprocessed_dir, date_threshold)
+    elif args.run_train_test_split:
+        run_train_test_split(preprocessed_dir, models_dir)
+    else:
+        # Default: run full pipeline
+        run_train_test_split(preprocessed_dir, models_dir)
+
+    logger.info('Train/test split pipeline completed')
 
 # ---------- All exports ---------- #
 __all__ = ['run_train_test_split']

@@ -18,49 +18,18 @@ import traceback
 from dotenv import load_dotenv
 import polars as pl
 
+from src.logging_set_up import setup_logging
 from src.raw_data_loading import load_env_with_logging, download_all_raw
 from src.data_preprocessing import run_preprocessing
 from src.train_test_split import run_train_test_split
-from src.popularity_based_rec import generate_popularity_recommendations
-from src.collaborative_rec import train_als_model
-from src.similar_based_als import get_similar_tracks
+from src.popularity_based_model import generate_popularity_recommendations
+from src.als_model import als_recommendations
+from src.similarity_based_model import similarity_based_recommendations
 from src.rec_ranking import run_ranking_pipeline
-from src.rec_evaluation import run_evaluation
+from src.rec_evaluation import evaluate_model
 
 # ---------- Logging setup ---------- #
-# Create logs directory if it doesn't exist
-os.makedirs('logs', exist_ok=True)
-
-# Configure root logger without automatic handler creation
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] %(message)s',
-    handlers=[]
-)
-
-# Get logger for this module
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Terminal output
-terminal_handler = logging.StreamHandler()
-terminal_handler.setLevel(logging.INFO)
-logger.addHandler(terminal_handler)
-
-# JSON file output
-log_file = 'logs/app_log.json'
-json_handler = logging.FileHandler(log_file, mode='a')
-json_handler.setLevel(logging.INFO)
-
-json_formatter = jsonlogger.JsonFormatter(
-    fmt='%(asctime)s %(name)s %(levelname)s %(message)s',
-    rename_fields={'asctime': 'timestamp', 'levelname': 'level', 'name': 'module'}
-)
-json_handler.setFormatter(json_formatter)
-logger.addHandler(json_handler)
-
-# Initial logging
-logger.info('Music recommendation system starting', extra={'version': '1.0', 'component': 'main'})
+logger = setup_logging('main')
 
 # ---------- Main pipeline---------- #
 def main():
@@ -81,9 +50,9 @@ def main():
     args = parser.parse_args()
     
     # ---------- Step 1: Load environment variables ---------- #
-    print('\n' + '='*60)
+    print('\n' + '='*80)
     logger.info('STEP 1: Loading environment variables')
-    print('='*60)
+    print('='*80)
     
     load_dotenv()
 
@@ -96,9 +65,9 @@ def main():
     
     # ---------- Step 2: Download raw data (if not skipped) ---------- #
     if not args.skip_download:
-        print('\n' + '='*60)
+        print('\n' + '='*80)
         logger.info('STEP 2: Downloading raw data')
-        print('='*60)
+        print('='*80)
         
         try:
             download_all_raw()
@@ -107,9 +76,9 @@ def main():
             logger.error(f'ERROR: Failed to download raw data: {e}')
             sys.exit(1)
     else:
-        print('\n' + '='*60)
+        print('\n' + '='*80)
         logger.info('STEP 2: Skipping raw data download (--skip-download flag)')
-        print('='*60)
+        print('='*80)
         
         # Verify that the required raw data files exist
         raw_files = ['tracks.parquet', 'catalog_names.parquet', 'interactions.parquet']
@@ -124,16 +93,16 @@ def main():
         logger.info(f'INFO: All raw files present in {raw_dir}')
     
     # ---------- Step 3: Run preprocessing pipeline ---------- #
-    print('\n' + '='*60)
+    print('\n' + '='*80)
     print('STEP 3: Preprocessing data')
-    print('='*60)
+    print('='*80)
     
     try:
-        run_preprocessing(raw_dir, preprocessed_dir)
+        run_preprocessing()
         
-        print('\n' + '='*60)
+        print('\n' + '='*80)
         logger.info('DONE: Preprocessing pipeline completed successfully')
-        print('='*60)
+        print('='*80)
 
         # Verify that the required preprocessed data files exist
         preprocessed_files = [
@@ -161,7 +130,7 @@ def main():
         logger.info(f'INFO: Items dataframe shape:          {items_shape}')
         logger.info(f'INFO: Tracks catalog dataframe shape: {catalog_shape}')
         logger.info(f'INFO: Events dataframe shape:         {events_shape}')
-        print('='*60 + '\n')
+        print('='*80 + '\n')
         
     except Exception as e:
         logger.error(f'ERROR: Preprocessing failed: {e}')
@@ -169,12 +138,12 @@ def main():
         sys.exit(1)
     
     # ---------- Step 4: Split data into train/test sets ---------- #
-    print('\n' + '='*60)
+    print('\n' + '='*80)
     logger.info('STEP 4: Splitting data into train/test sets')
-    print('='*60)
+    print('='*80)
     
     try:
-        run_train_test_split(preprocessed_dir)
+        run_train_test_split()
     except Exception as e:
         logger.error(f'ERROR: Splitting data into train/test sets failed: {e}')
         traceback.print_exc()
@@ -201,25 +170,24 @@ def main():
     logger.info(f'INFO: Test matrix shape: {test_matrix_shape}')
 
     # ---------- Step 5: Find popularity_based recommendations ---------- #     
-    print('\n' + '='*60)
+    print('\n' + '='*80)
     logger.info('STEP 5: Finding popularity-based recommendations')
-    print('='*60)
+    print('='*80)
     
     try:
-        n_popular = int(os.getenv('POPULARITY_TOP_N', 100))
-        generate_popularity_recommendations(preprocessed_dir, n=n_popular)
+        generate_popularity_recommendations()
     except Exception as e:
         logger.error(f'ERROR: Finding popular tracks failed: {e}')
         traceback.print_exc()
         sys.exit(1)
 
     # ---------- Step 6: Find ALS recommendations ---------- #
-    print('\n' + '='*60)
+    print('\n' + '='*80)
     logger.info('STEP 6: Finding ALS recommendations')
-    print('='*60)
+    print('='*80)
     
     try:
-        train_als_model(preprocessed_dir)
+        als_recommendations()
         # Free memory after ALS training
         gc.collect()
     except Exception as e:
@@ -228,25 +196,23 @@ def main():
         sys.exit(1)
 
     # ---------- Step 7: Find similarity-based recommendations ---------- #
-    print('\n' + '='*60)
+    print('\n' + '='*80)
     logger.info('STEP 7: Finding similarity-based recommendations')
-    print('='*60)
+    print('='*80)
     
     try:
-        similar_finder = get_similar_tracks()
-        similar_finder.find_similar_to_all()
+        similarity_based_recommendations()
         # Free memory after similar tracks computation
-        del similar_finder
         gc.collect()
     except Exception as e:
-        logger.error(f'ERROR: Finding similarity-based recommendations failed: {e}')
+        logger.error(f'ERROR: Generating similarity-based recommendations failed: {e}')
         traceback.print_exc()
         sys.exit(1)
 
     # ---------- Step 8: Rank recommendations ---------- #
-    print('\n' + '='*60)
+    print('\n' + '='*80)
     logger.info('STEP 8: Ranking recommendations')
-    print('='*60)
+    print('='*80)
     
     try:
         run_ranking_pipeline()
@@ -257,21 +223,21 @@ def main():
         sys.exit(1)
 
     # ---------- Step 9: Evaluate models ---------- #
-    print('\n' + '='*60)
+    print('\n' + '='*80)
     logger.info('STEP 9: Evaluating models')
-    print('='*60)
+    print('='*80)
     
     try:
-        run_evaluation()
+        evaluate_model()
         gc.collect()
     except Exception as e:
         logger.error(f'ERROR: Models evaluation failed: {e}')
         traceback.print_exc()
         sys.exit(1)
 
-    print('\n' + '='*60)
+    print('\n' + '='*80)
     logger.info('DONE: Recommendation system completed successfully')
-    print('='*60)
+    print('='*80)
 
 if __name__ == '__main__':
     main()

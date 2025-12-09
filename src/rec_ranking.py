@@ -31,20 +31,31 @@ import polars as pl
 from dotenv import load_dotenv
 from catboost import CatBoostClassifier, Pool
 
-from src.s3_utils import upload_recommendations_to_s3
+from src.s3_loading import upload_recommendations_to_s3
+from src.logging_set_up import setup_logging
 
 # ---------- Load environment variables ---------- #
 config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
 load_dotenv(os.path.join(config_dir, '.env'))
 
 # ---------- Logging setup ---------- #
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s')
-logger = logging.getLogger(__name__)
+logger = setup_logging('rec_ranking')
 
 # ---------- RecommendationRanker class ---------- #
 class RecommendationRanker:
     '''
         Ranking class for applying multi-objective optimization to recommendations.
+
+        Args:
+        - catalog - catalog dataframe
+
+        Attributes:
+        - catalog - catalog dataframe
+        - track_genres - dictionary of track ids and genres
+        - track_artists - dictionary of track ids and artists
+
+        Methods:
+        - rank_multi_objective - rank recommendations using multi-objective optimization
     '''
     
     def __init__(self, catalog: pl.DataFrame):
@@ -77,6 +88,18 @@ class RecommendationRanker:
             - Combined score = (1 - diversity_weight - popularity_weight - novelty_weight) * relevance + diversity_weight * diversity_score + popularity_weight * pop_score + novelty_weight * novelty_score
             - Greedy selection to maximize diversity
             - Return the top n recommendations.
+
+            Args:
+            - recommendations - list of recommendations
+            - popularity_scores - dictionary of popularity scores
+            - user_history - set of user history
+            - n - number of recommendations to return
+            - diversity_weight - weight for diversity
+            - popularity_weight - weight for popularity
+            - novelty_weight - weight for novelty
+
+            Returns:
+            - list of recommendations
         '''
         if not recommendations:
             return []
@@ -149,6 +172,13 @@ def compute_track_features(catalog: pl.DataFrame, events: pl.DataFrame) -> pl.Da
             - artist_popularity - normalized popularity of the artist (total listens)
             - track_group_size - number of tracks in the same group (different versions of same song), 
             an indicator of track popularity and uniqueness
+
+            Args:
+            - catalog - catalog dataframe
+            - events - events dataframe
+
+            Returns:
+            - dataframe with track features
     '''
     logger.info('Computing track custom features')
 
@@ -234,6 +264,13 @@ def compute_track_features(catalog: pl.DataFrame, events: pl.DataFrame) -> pl.Da
 def load_popular_candidates(results_dir: str, user_ids: List[int]) -> pl.DataFrame:
     '''
         Load popularity-based candidates by expanding top popular tracks to all target users.
+
+        Args:
+        - results_dir - path to results directory
+        - user_ids - list of user ids
+
+        Returns:
+        - dataframe with popularity-based candidates
     '''
     logger.info('Loading popularity-based candidates')
 
@@ -263,6 +300,12 @@ def load_popular_candidates(results_dir: str, user_ids: List[int]) -> pl.DataFra
 def load_als_candidates(results_dir: str) -> pl.DataFrame:
     '''
         Load ALS collaborative filtering candidates.
+
+        Args:
+        - results_dir - path to results directory
+
+        Returns:
+        - dataframe with ALS candidates
     '''
     logger.info(f'Loading ALS candidates')
 
@@ -277,11 +320,22 @@ def load_als_candidates(results_dir: str) -> pl.DataFrame:
     return als_candidates
 
 # ---------- Load similar-based recommendations---------- #
-def load_similar_candidates(results_dir: str, events: pl.DataFrame, max_similar: int) -> pl.DataFrame:
+def load_similar_candidates(
+    results_dir: str, 
+    events: pl.DataFrame, 
+    max_similar: int
+) -> pl.DataFrame:
     '''
         Load similar-based candidates by expanding user history with similar tracks.
+
+        Args:
+        - results_dir - path to results directory
+        - events - events dataframe
+        - max_similar - maximum number of similar tracks to load
+
+        Returns:
+        - dataframe with similar-based candidates
     '''
-    logger.info(f'Loading similar-based candidates')
 
     similar_path = os.path.join(results_dir, 'similar.parquet')
     logger.info(f'Loading similar-based candidates from {similar_path}')
@@ -305,9 +359,23 @@ def load_similar_candidates(results_dir: str, events: pl.DataFrame, max_similar:
     return similar_candidates
 
 # ---------- Load and merge candidates ---------- #
-def load_and_merge_candidates(results_dir: str, events: pl.DataFrame, user_ids: List[int], max_similar: int) -> pl.DataFrame:
+def load_and_merge_candidates(
+    results_dir: str, 
+    events: pl.DataFrame, 
+    user_ids: List[int], 
+    max_similar: int
+) -> pl.DataFrame:
     '''
         Load and merge candidates from ALS + similar-based + popularity-based sources.
+
+        Args:
+        - results_dir - path to results directory
+        - events - events dataframe
+        - user_ids - list of user ids
+        - max_similar - maximum number of similar tracks to load
+
+        Returns:
+        - dataframe with merged candidates
     '''
     logger.info('Loading and merging candidates from ALS + similar-based + popularity-based sources')
     
@@ -355,6 +423,13 @@ def load_and_merge_candidates(results_dir: str, events: pl.DataFrame, user_ids: 
 def add_target_labels(candidates: pl.DataFrame, events: pl.DataFrame) -> pl.DataFrame:
     '''
         Add target labels: 1 if user listened to track, 0 otherwise.
+
+        Args:
+        - candidates - dataframe with candidates
+        - events - events dataframe
+
+        Returns:
+        - dataframe with target labels
     '''
     logger.info('Adding target labels to candidates')
     
@@ -378,6 +453,12 @@ def add_target_labels(candidates: pl.DataFrame, events: pl.DataFrame) -> pl.Data
 def filter_users_with_positive(candidates: pl.DataFrame) -> pl.DataFrame:
     '''
         Keep only users with at least one positive example.
+
+        Args:
+        - candidates - dataframe with candidates
+
+        Returns:
+        - dataframe with users with positive examples
     '''  
     logger.info('Filtering users with positive examples')
 
@@ -390,9 +471,21 @@ def filter_users_with_positive(candidates: pl.DataFrame) -> pl.DataFrame:
     return candidates
 
 # ---------- Sample negatives ---------- #
-def sample_negatives(candidates: pl.DataFrame, multiplier: int = 4, seed: int = 42) -> pl.DataFrame:
+def sample_negatives(
+    candidates: pl.DataFrame, 
+    multiplier: int, 
+    seed: int
+) -> pl.DataFrame:
     '''
         Sample negatives for each user_id: max multiplier * positives per user.
+
+        Args:
+        - candidates - dataframe with candidates
+        - multiplier - multiplier for number of negatives to sample
+        - seed - seed for random number generator
+
+        Returns:
+        - dataframe with sampled negatives
     '''
 
     logger.info(f'Sampling negatives (max {multiplier}x positives per user)')
@@ -429,9 +522,23 @@ def sample_negatives(candidates: pl.DataFrame, multiplier: int = 4, seed: int = 
     return train_data
 
 # ---------- Train classifier ---------- #
-def train_classifier(train_data: pl.DataFrame, features: List[str], iterations: int, seed: int) -> CatBoostClassifier:
+def train_classifier(
+    train_data: pl.DataFrame, 
+    features: List[str], 
+    iterations: int, 
+    seed: int
+) -> CatBoostClassifier:
     '''
         Train CatBoostClassifier.
+
+        Args:
+        - train_data - dataframe with training data
+        - features - list of features to use
+        - iterations - number of iterations for CatBoost
+        - seed - seed for random number generator
+
+        Returns:
+        - CatBoostClassifier model
     '''
     logger.info('Training CatBoostClassifier')
     
@@ -453,9 +560,21 @@ def train_classifier(train_data: pl.DataFrame, features: List[str], iterations: 
     logger.info('CatBoostClassifier trained')
     return model
 
-def predict_and_rank(model: CatBoostClassifier, candidates: pl.DataFrame, features: List[str]) -> pl.DataFrame:
+def predict_and_rank(
+    model: CatBoostClassifier, 
+    candidates: pl.DataFrame, 
+    features: List[str]
+) -> pl.DataFrame:
     '''
         Predict scores and rank candidates per user.
+
+        Args:
+        - model - CatBoostClassifier model
+        - candidates - dataframe with candidates
+        - features - list of features to use
+
+        Returns:
+        - dataframe with ranked candidates
     '''
     logger.info('Predicting and ranking')
     
@@ -473,9 +592,16 @@ def predict_and_rank(model: CatBoostClassifier, candidates: pl.DataFrame, featur
     logger.info(f'Ranked {ranked.height:,} candidates for {ranked["user_id"].n_unique():,} users')
     return ranked
 
-def top_k_per_user(ranked: pl.DataFrame, k: int = 10) -> pl.DataFrame:
+def top_k_per_user(ranked: pl.DataFrame, k: int) -> pl.DataFrame:
     '''
         Extract top-K recommendations per user.
+
+        Args:
+        - ranked - dataframe with ranked candidates
+        - k - number of recommendations to return
+
+        Returns:
+        - dataframe with top-K recommendations per user
     '''
     logger.info('Extracting top-K recommendations per user')
 
@@ -485,14 +611,52 @@ def top_k_per_user(ranked: pl.DataFrame, k: int = 10) -> pl.DataFrame:
     logger.info(f'Top-{k}: {top_k.height:,} recommendations for {top_k["user_id"].n_unique():,} users')
     return top_k
 
-# ---------- Run ranking pipeline (implementation) ---------- #
-def _run_ranking_pipeline_impl(preprocessed_dir: str, results_dir: str, models_dir: str, 
-                               features: List[str], top_k: int, sample_users: int, 
-                               iterations: int, negatives_multiplier: int, max_similar: int, 
-                               seed: int) -> None:
+# ---------- Run ranking pipeline ---------- #
+def run_ranking_pipeline(
+    preprocessed_dir: str = None, 
+    results_dir: str = None, 
+    models_dir: str = None, 
+    features: List[str] = None, 
+    top_k: int = None, 
+    sample_users: int = None, 
+    iterations: int = None, 
+    negatives_multiplier: int = None, 
+    max_similar: int = None, 
+    seed: int = None
+) -> None:
     '''
         Run the complete ranking pipeline.
+
+        Args:
+        - preprocessed_dir - path to preprocessed data directory
+        - results_dir - path to results directory
+        - models_dir - path to models directory
+        - features - list of features to use
+        - top_k - number of recommendations to return
+        - sample_users - number of users to sample
     '''
+    # Load defaults from environment if not provided
+    if preprocessed_dir is None:
+        preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+    if results_dir is None:
+        results_dir = os.getenv('RESULTS_DIR', './results')
+    if models_dir is None:
+        models_dir = os.getenv('MODELS_DIR', './models')
+    if features is None:
+        features = ast.literal_eval(os.getenv('RANKING_FEATURES', "['als_score', 'similar_score', 'popularity_score', 'genre_popularity', 'artist_popularity', 'track_group_size']"))
+    if top_k is None:
+        top_k = int(os.getenv('RANKING_TOP_K', 10))
+    if sample_users is None:
+        sample_users = int(os.getenv('RANKING_SAMPLE_USERS', 10000))
+    if iterations is None:
+        iterations = int(os.getenv('RANKING_CATBOOST_ITERATIONS', 100))
+    if negatives_multiplier is None:
+        negatives_multiplier = int(os.getenv('RANKING_NEGATIVES_MULTIPLIER', 4))
+    if max_similar is None:
+        max_similar = int(os.getenv('RANKING_MAX_SIMILAR', 10))
+    if seed is None:
+        seed = int(os.getenv('SEED', 42))
+    
     logger.info('Running recommendation ranking pipeline')
     
     np.random.seed(seed)
@@ -619,6 +783,7 @@ def _run_ranking_pipeline_impl(preprocessed_dir: str, results_dir: str, models_d
 # ---------- Generate ranked recommendations ---------- #
 def generate_ranked_recommendations(
     preprocessed_dir: str, 
+    results_dir: str,
     models_dir: str, 
     n: int = 10,
     sample_users: int = None
@@ -636,9 +801,7 @@ def generate_ranked_recommendations(
         Dictionary mapping user_id to list of track_ids
     '''
     logger.info('Generating ranked recommendations')
-    
-    results_dir = os.getenv('RESULTS_DIR', './results')
-    
+       
     # Check if recommendations already exist
     recs_path = os.path.join(results_dir, 'recommendations.parquet')
     if os.path.exists(recs_path):
@@ -736,13 +899,17 @@ def generate_ranked_recommendations(
     logger.info(f'Generated recommendations for {len(recs):,} users')
     return recs
 
-# ---------- Wrapper for main.py (reads from env vars) ---------- #
-def run_ranking_pipeline(sample_users=None, top_k=None, iterations=None, negatives_multiplier=None):
-    '''
-        Run ranking pipeline.
-    '''
-    logger.info('Running recommendation ranking pipeline')
+# ---------- Main entry point ---------- #
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Run recommendation ranking pipeline')
+    parser.add_argument('--sample_users', type=int, default=None)
+    parser.add_argument('--top_k', type=int, default=None)
+    parser.add_argument('--iterations', type=int, default=None)
+    parser.add_argument('--negatives_multiplier', type=int, default=None)
+    args = parser.parse_args()
     
+    logger.info('Running recommendation ranking pipeline')
+
     # Check required environment variables
     required_env_vars = [
         'PREPROCESSED_DATA_DIR', 
@@ -760,31 +927,30 @@ def run_ranking_pipeline(sample_users=None, top_k=None, iterations=None, negativ
     if missing_vars:
         raise EnvironmentError(f'Missing required environment variables: {", ".join(missing_vars)}')
 
-    # Load from env with optional overrides
-    config = {
-        'preprocessed_dir': os.getenv('PREPROCESSED_DATA_DIR'),
-        'results_dir': os.getenv('RESULTS_DIR'),
-        'models_dir': os.getenv('MODELS_DIR'),
-        'seed': int(os.getenv('SEED')),
-        'negatives_multiplier': negatives_multiplier or int(os.getenv('RANKING_NEGATIVES_MULTIPLIER')),
-        'sample_users': sample_users or int(os.getenv('RANKING_SAMPLE_USERS')),
-        'top_k': top_k or int(os.getenv('RANKING_TOP_K')),
-        'iterations': iterations or int(os.getenv('RANKING_CATBOOST_ITERATIONS')),
-        'max_similar': int(os.getenv('RANKING_MAX_SIMILAR')),
-        'features': ast.literal_eval(os.getenv('RANKING_FEATURES')),
-    }
-    logger.info(f'Config: seed={config["seed"]}, top_k={config["top_k"]}, iterations={config["iterations"]}')
+    # Load from env
+    preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR')
+    results_dir = os.getenv('RESULTS_DIR')
+    models_dir = os.getenv('MODELS_DIR')
+    seed = int(os.getenv('SEED'))
+    features = ast.literal_eval(os.getenv('RANKING_FEATURES'))
+    top_k = args.top_k or int(os.getenv('RANKING_TOP_K'))
+    sample_users = args.sample_users or int(os.getenv('RANKING_SAMPLE_USERS'))
+    iterations = args.iterations or int(os.getenv('RANKING_CATBOOST_ITERATIONS'))
+    negatives_multiplier = args.negatives_multiplier or int(os.getenv('RANKING_NEGATIVES_MULTIPLIER'))
+    max_similar = int(os.getenv('RANKING_MAX_SIMILAR'))
 
-    _run_ranking_pipeline_impl(**config)
+    run_ranking_pipeline(
+        preprocessed_dir, 
+        results_dir, 
+        models_dir, 
+        features, 
+        top_k, 
+        sample_users, 
+        iterations, 
+        negatives_multiplier, 
+        max_similar, 
+        seed
+    )
+
     logger.info('Recommendation ranking pipeline completed')
-
-# ---------- Main entry point ---------- #
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Run recommendation ranking pipeline')
-    parser.add_argument('--sample_users', type=int, default=None)
-    parser.add_argument('--top_k', type=int, default=None)
-    parser.add_argument('--iterations', type=int, default=None)
-    parser.add_argument('--negatives_multiplier', type=int, default=None)
-    args = parser.parse_args()
     
-    run_ranking_pipeline(args.sample_users, args.top_k, args.iterations, args.negatives_multiplier)

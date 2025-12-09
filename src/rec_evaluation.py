@@ -1,5 +1,5 @@
 '''
-Recommendation Model Evaluation
+    Recommendation Model Evaluation
 
     This module provides functionality to evaluate recommendation models using metrics:
     - Precision@K - fraction of recommended items that are relevant
@@ -14,7 +14,7 @@ Recommendation Model Evaluation
 
     Usage:
         python -m src.rec_evaluation # evaluate all models
-        python -m src.rec_evaluation --model popularity # model to evaluate: popularity, collaborative, ranked, all
+        python -m src.rec_evaluation --model popularity # model to evaluate: popularity, als, ranked, all
 '''
 
 # ---------- Imports ---------- #
@@ -32,17 +32,17 @@ import polars as pl
 from scipy.sparse import load_npz
 from dotenv import load_dotenv
 
-from src.popularity_based_rec import PopularityRecommender
-from src.collaborative_rec import ALSRecommender, load_als_model
+from src.popularity_based_model import PopularityRecommender
+from src.als_model import ALSRecommender, load_als_model
 from src.rec_ranking import generate_ranked_recommendations
+from src.logging_set_up import setup_logging
 
 # ---------- Load environment variables ---------- #
 config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
 load_dotenv(os.path.join(config_dir, '.env'))
 
 # ---------- Logging setup ---------- #
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s')
-logger = logging.getLogger(__name__)
+logger = setup_logging('rec_evaluation')
 
 # ---------- Recommendation Evaluator ---------- #
 class RecommendationEvaluator:
@@ -52,6 +52,27 @@ class RecommendationEvaluator:
         1. Initialize the evaluator with the catalog and events data
         2. Compute the track popularity and track groups for diversity
         3. Compute the precision@k, recall@k, ndcg@k, novelty, diversity metrics
+
+        Args:
+        - catalog_df - catalog dataframe
+        - events_df - events dataframe
+        - results_dir - path to results directory
+
+        Attributes:
+        - catalog_df - catalog dataframe
+        - events_df - events dataframe
+        - results_dir - path to results directory
+        - track_pop - dictionary of track ids and popularity scores
+        - max_pop - maximum popularity score
+        - track_to_group - dictionary of track ids and track group ids
+
+        Methods:
+        - precision_at_k - compute precision@k
+        - recall_at_k - compute recall@k
+        - ndcg_at_k - compute ndcg@k
+        - novelty - compute novelty
+        - diversity - compute diversity
+        - all_metrics - compute all metrics
     '''
     
     def __init__(self, catalog_df: pl.DataFrame, events_df: pl.DataFrame, results_dir: str = None):
@@ -82,6 +103,14 @@ class RecommendationEvaluator:
             Precision@K - fraction of recommended items that are relevant.            
             - Compute the precision@k for each user
             - Return the average precision@k
+
+            Args:
+            - recs - dictionary of recommendations
+            - test - dictionary of test items
+            - k - number of recommendations to return
+
+            Returns:
+            - average precision@k
         '''
         
         scores = [len(set(recs[u][:k]) & test[u]) / k for u in recs if u in test and recs[u]]
@@ -91,6 +120,14 @@ class RecommendationEvaluator:
     def recall_at_k(self, recs: Dict[int, List[int]], test: Dict[int, Set[int]], k: int) -> float:
         '''
             Recall@K - fraction of relevant items that are recommended.
+
+            Args:
+            - recs - dictionary of recommendations
+            - test - dictionary of test items
+            - k - number of recommendations to return
+
+            Returns:
+            - average recall@k
         '''
         
         scores = [len(set(recs[u][:k]) & test[u]) / len(test[u]) for u in recs if u in test and test[u]]
@@ -102,6 +139,14 @@ class RecommendationEvaluator:
             NDCG@K - normalized discounted cumulative gain.            
             - Compute the NDCG@k for each user
             - Return the average NDCG@k
+
+            Args:
+            - recs - dictionary of recommendations
+            - test - dictionary of test items
+            - k - number of recommendations to return
+
+            Returns:
+            - average NDCG@k
         '''
         
         ndcgs = []
@@ -121,6 +166,13 @@ class RecommendationEvaluator:
             Novelty - measures how novel/unpopular the recommendations are.            
             - Compute the novelty score for each user
             - Return the average novelty score
+
+            Args:
+            - recs - dictionary of recommendations
+            - k - number of recommendations to return
+
+            Returns:
+            - average novelty score
         '''
         
         scores = [-np.log2(self.track_pop.get(t, 1) / self.max_pop + 1e-10)
@@ -133,6 +185,13 @@ class RecommendationEvaluator:
             Diversity - measures variety in recommendations using track_group_id.            
             - Compute the diversity score for each user
             - Return the average diversity score
+
+            Args:
+            - recs - dictionary of recommendations
+            - k - number of recommendations to return
+
+            Returns:
+            - average diversity score
         '''
         
         scores = [len({self.track_to_group.get(t, t) for t in r[:k]}) / len(r[:k])
@@ -145,6 +204,14 @@ class RecommendationEvaluator:
             Compute all metrics and return them as a dictionary.            
             - Compute the precision@k, recall@k, ndcg@k, novelty, diversity metrics
             - Return the metrics as a dictionary
+
+            Args:
+            - recs - dictionary of recommendations
+            - test - dictionary of test items
+            - k - number of recommendations to return
+
+            Returns:
+            - dictionary of metrics
         '''
         
         return {
@@ -156,13 +223,14 @@ class RecommendationEvaluator:
         }
 
 # ---------- Popularity-based recommendations ---------- #
-def generate_popular_recommendations(
+def get_popular_recommendations(
+    preprocessed_dir: str,
     results_dir: str,
     train_events: pl.DataFrame,
     test_events: pl.DataFrame,
     catalog: pl.DataFrame,
-    n: int = 100,
-    n_recs: int = 10,
+    n_popular: int,
+    n_recs_popular: int,
     method: str = 'listen_count'
 ) -> Dict[int, List[int]]:
     '''
@@ -171,6 +239,19 @@ def generate_popular_recommendations(
         1. Check if top_popular.parquet exists, load it, otherwise compute from train_events
         2. For each test user, filter out tracks they've listened to
         3. Return top N recommendations per user
+
+        Args:
+        - preprocessed_dir - path to preprocessed data directory
+        - results_dir - path to results directory
+        - train_events - training events dataframe
+        - test_events - test events dataframe
+        - catalog - catalog dataframe
+        - n - number of recommendations to return
+        - n_recs - number of recommendations per user
+        - method - method to use for popularity-based recommendations
+
+        Returns:
+        - dictionary of recommendations
     '''
     logger.info(f'Generating popular recommendations using method={method}')
     
@@ -186,13 +267,12 @@ def generate_popular_recommendations(
         logger.info(f'Loaded {recommender.top_tracks.height:,} popular tracks')
     else:
         # Compute from preprocessed_dir (uses full events.parquet)
-        preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
         logger.info(f'No file found, computing popularity using PopularityRecommender')
         recommender.fit(
             preprocessed_dir=preprocessed_dir,
             method=method,
             with_metadata=False,
-            n=n
+            n=n_popular
         )
     
     # Build user listening history from train events (computed once)
@@ -213,7 +293,7 @@ def generate_popular_recommendations(
         # Use pre-computed user_listened for efficiency (no file loading)
         recs = recommender.recommend(
             user_id=user_id,
-            n_recs=n_recs,
+            n_recs=n_recs_popular,
             user_listened=user_listened.get(user_id, set())
         )
         popularity_based_rec[user_id] = recs
@@ -223,11 +303,11 @@ def generate_popular_recommendations(
     return popularity_based_rec
 
 # ---------- Collaborative-based recommendations ---------- #
-def generate_als_recommendations(
+def get_als_recommendations(
     model_path: str,
     train_matrix,
     test_events: pl.DataFrame,
-    n: int = 10,
+    n_als: int
 ) -> Dict[int, List[int]]:
     '''
         Generate ALS-based recommendations using batch processing for speed.
@@ -236,6 +316,15 @@ def generate_als_recommendations(
         2. Get the test users and filter to valid ones
         3. Use batch recommend for all users at once (much faster than one-by-one)
         4. Return the recommendations
+
+        Args:
+        - model_path - path to ALS model
+        - train_matrix - training matrix
+        - test_events - test events dataframe
+        - n - number of recommendations to return
+
+        Returns:
+        - dictionary of recommendations
     '''
     logger.info(f'Generating ALS recommendations from {model_path}')
     
@@ -268,11 +357,11 @@ def generate_als_recommendations(
     valid_indices = np.array(valid_indices)
     
     # Use batch recommend for much faster processing (all users at once)
-    logger.info('Running batch recommendation...')
+    logger.info('Running batch recommendation with ALS model')
     track_indices_batch, scores_batch = als_model.model.recommend(
         valid_indices,
         train_matrix[valid_indices],
-        N=n,
+        N=n_als,
         filter_already_liked_items=True
     )
     logger.info('Batch recommendation complete')
@@ -290,30 +379,92 @@ def generate_als_recommendations(
     
     logger.info(f'Generated {len(als_based_rec):,} recommendation lists')
     return als_based_rec
-    
+
+# ---------- Ranked recommendations ---------- #
 def get_ranked_recommendations(
     preprocessed_dir: str,
     results_dir: str,
     models_dir: str,
-    n: int = 10,
-    sample_users: int = 5000
+    n_ranked: int,
+    sample_users: int
 ) -> Dict[int, List[int]]:
     '''
         Load or generate ranked recommendations.
+
+        Args:
+        - preprocessed_dir - path to preprocessed data directory
+        - results_dir - path to results directory
+        - models_dir - path to models directory
+        - n_ranked - number of recommendations to return
+        - sample_users - number of users to sample
+
+        Returns:
+        - dictionary of recommendations
     '''
     logger.info('Loading ranked recommendations')
     # Delegate to generate_ranked_recommendations which handles caching internally
     # and always returns Dict[int, List[int]]
-    ranked_recs = generate_ranked_recommendations(preprocessed_dir, models_dir, n=n, sample_users=sample_users)
+    ranked_recs = generate_ranked_recommendations(preprocessed_dir, results_dir, models_dir, n_ranked, sample_users)
     logger.info(f'Loaded/generated recommendations for {len(ranked_recs):,} users')
     return ranked_recs
 
-# ---------- Evaluation (implementation) ---------- #
-def _evaluate_model_impl(model_name: str, preprocessed_dir: str, models_dir: str,
-                         k_values: List[int], output_dir: str, n_recs: int = 10, sample_users: int = 5000) -> Dict:
+# ---------- Evaluation ---------- #
+def evaluate_model(
+    model_name: str = None, 
+    preprocessed_dir: str = None, 
+    models_dir: str = None,
+    k_values: List[int] = None, 
+    output_dir: str = None, 
+    n_popular: int = None,
+    n_recs_popular: int = None,
+    n_als: int = None,
+    n_ranked: int = None,
+    sample_users: int = None
+) -> Dict:
     '''
         Evaluate a model and save results to JSON.
+
+        Args:
+        - model_name - name of the model
+        - preprocessed_dir - path to preprocessed data directory
+        - models_dir - path to models directory
+        - k_values - list of k values to evaluate
+        - output_dir - path to output directory
+        Evaluate a model and save results to JSON.
+
+        Returns:
+        - dictionary of results
     '''
+    # Load defaults from environment if not provided
+    if model_name is None:
+        model_name = 'all'
+    if preprocessed_dir is None:
+        preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+    if models_dir is None:
+        models_dir = os.getenv('MODELS_DIR', './models')
+    if k_values is None:
+        k_values = [int(k.strip()) for k in os.getenv('EVALUATION_K_VALUES', '5,10').split(',')]
+    if output_dir is None:
+        output_dir = os.getenv('RESULTS_DIR', './results')
+    if n_popular is None:
+        n_popular = int(os.getenv('POPULARITY_TOP_N', 100))
+    if n_recs_popular is None:
+        n_recs_popular = int(os.getenv('POPULARITY_N_RECS', 10))
+    if n_als is None:
+        n_als = int(os.getenv('ALS_N_RECS', 10))
+    if n_ranked is None:
+        n_ranked = int(os.getenv('RANKED_N_RECS', 10))
+    if sample_users is None:
+        sample_users = int(os.getenv('EVALUATION_SAMPLE_USERS', 10000))
+    
+    # Handle 'all' model evaluation
+    if model_name == 'all':
+        results = {}
+        for m in ['popularity', 'als', 'ranked']:
+            results[m] = evaluate_model(m, preprocessed_dir, models_dir, k_values, output_dir, n_popular, n_recs_popular, n_als, n_ranked, sample_users)
+        compare_models(output_dir)
+        return results
+    
     logger.info(f'Evaluating {model_name.upper()}')
     
     # Load data
@@ -325,12 +476,12 @@ def _evaluate_model_impl(model_name: str, preprocessed_dir: str, models_dir: str
     
     # Get recommendations based on model type
     if model_name == 'popularity':
-        recs = generate_popular_recommendations(output_dir, train_events, test_events, catalog, n_recs=n_recs)
-    elif model_name == 'collaborative':
+        recs = get_popular_recommendations(preprocessed_dir, output_dir, train_events, test_events, catalog, n_popular, n_recs_popular, method='listen_count')
+    elif model_name == 'als':
         als_model_path = os.path.join(models_dir, 'als_model.pkl')
-        recs = generate_als_recommendations(als_model_path, train_matrix, test_events, n=n_recs)
+        recs = get_als_recommendations(als_model_path, train_matrix, test_events, n_als)
     elif model_name == 'ranked':
-        recs = get_ranked_recommendations(preprocessed_dir, output_dir, models_dir, n=n_recs, sample_users=sample_users)
+        recs = get_ranked_recommendations(preprocessed_dir, output_dir, models_dir, n_ranked, sample_users)
     else:
         logger.error(f'Unknown model: {model_name}')
         return {}
@@ -387,6 +538,12 @@ def _evaluate_model_impl(model_name: str, preprocessed_dir: str, models_dir: str
 def compare_models(results_dir: str) -> pl.DataFrame:
     '''
         Compare multiple evaluated models from the results directory and save the comparison to a parquet file.
+
+        Args:
+        - results_dir - path to results directory
+
+        Returns:
+        - dataframe of results
     '''
     
     logger.info('Comparing models')
@@ -427,13 +584,14 @@ def compare_models(results_dir: str) -> pl.DataFrame:
     models_comparison.write_parquet(models_comparison_path)
     logger.info(f'Saved comparison to {models_comparison_path}')
     
-    return models_comparison
+    return models_comparison   
 
-# ---------- Wrapper for main.py (reads from env vars) ---------- #
-def run_evaluation(model='all'):
-    '''
-        Run model evaluation.
-    '''
+# ---------- Main entry point ---------- #
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Evaluate recommendation models')
+    parser.add_argument('--model', choices=['popularity', 'als', 'ranked', 'all'], default='all')
+    args = parser.parse_args()
+    
     logger.info('Running recommendation models evaluation pipeline')
 
     # Check required environment variables
@@ -441,6 +599,19 @@ def run_evaluation(model='all'):
         'PREPROCESSED_DATA_DIR', 
         'RESULTS_DIR', 
         'MODELS_DIR',
+        'POPULARITY_METHOD',
+        'POPULARITY_TOP_N',
+        'POPULARITY_N_RECS',
+        'POPULARITY_WITH_METADATA',
+        'POPULARITY_FILTER_LISTENED',
+        'POPULARITY_USER_ID',
+        'ALS_N_RECS',
+        'ALS_NUM_THREADS',
+        'ALS_FACTORS',
+        'ALS_REGULARIZATION',
+        'ALS_ITERATIONS',
+        'ALS_ALPHA',
+        'RANKED_N_RECS',
         'EVALUATION_K_VALUES',
         'EVALUATION_SAMPLE_USERS',
         'EVALUATION_N_RECS',
@@ -454,27 +625,29 @@ def run_evaluation(model='all'):
     preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR')
     results_dir = os.getenv('RESULTS_DIR')
     models_dir = os.getenv('MODELS_DIR')
+    method = os.getenv('POPULARITY_METHOD')
+    top_n_popular = int(os.getenv('POPULARITY_TOP_N'))
+    n_recs_popular = int(os.getenv('POPULARITY_N_RECS'))
+    with_metadata_popular = bool(os.getenv('POPULARITY_WITH_METADATA'))
+    filter_listened_popular = bool(os.getenv('POPULARITY_FILTER_LISTENED'))
+    user_id_popular = int(os.getenv('POPULARITY_USER_ID'))
+    factors = int(os.getenv('ALS_FACTORS'))
+    regularization = float(os.getenv('ALS_REGULARIZATION'))
+    iterations = int(os.getenv('ALS_ITERATIONS'))
+    alpha = float(os.getenv('ALS_ALPHA'))
+    num_threads = int(os.getenv('ALS_NUM_THREADS'))
+    n_als = int(os.getenv('ALS_N_RECS'))
     k_values = [int(k.strip()) for k in os.getenv('EVALUATION_K_VALUES').split(',')]
-    sample_users = int(os.getenv('EVALUATION_SAMPLE_USERS'))
-    n_recs = int(os.getenv('EVALUATION_N_RECS'))
-    
-    # Use arg or env for model selection
-    model_selection = model or os.getenv('EVALUATION_MODELS', 'all')
-    models = ['popularity', 'collaborative', 'ranked'] if model_selection == 'all' else [model_selection]
+    sample_users = int(os.getenv('EVALUATION_SAMPLE_USERS'))   
+    n_ranked = int(os.getenv('RANKED_N_RECS'))
+    model_selection = args.model or os.getenv('EVALUATION_MODELS', 'all')
+    models = ['popularity', 'als', 'ranked'] if model_selection == 'all' else [model_selection]
     
     for m in models:
-        _evaluate_model_impl(m, preprocessed_dir, models_dir, k_values, results_dir, n_recs, sample_users)
+        evaluate_model(m, preprocessed_dir, models_dir, k_values, results_dir, top_n_popular, n_recs_popular, n_als, n_ranked, sample_users)
     
     if model_selection == 'all':
         compare_models(results_dir)
     
     gc.collect()
     logger.info('Recommendation models evaluation pipeline completed')
-
-# ---------- Main entry point ---------- #
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Evaluate recommendation models')
-    parser.add_argument('--model', choices=['popularity', 'collaborative', 'ranked', 'all'], default='all')
-    args = parser.parse_args()
-    
-    run_evaluation(args.model)

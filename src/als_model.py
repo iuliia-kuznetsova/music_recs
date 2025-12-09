@@ -13,17 +13,17 @@
     - personal_als.parquet - Personal recommendations for all users
 
     Usage:
-    python -m src.collaborative_rec --train
-    python -m src.collaborative_rec --recommend
-    python -m src.collaborative_rec --user-id 12345 --n-recs 20
+    python -m src.als_model --train # train ALS model
+    python -m src.als_model --recommend # generate recommendations for all users
+    python -m src.als_model --user-id 12345 # generate recommendations for a specific user
 '''
 
 # ---------- Imports ---------- #
 import os
 import gc
 import pickle
-import logging
 import argparse
+from typing import List, Tuple
 
 import numpy as np
 import polars as pl
@@ -31,7 +31,8 @@ from scipy.sparse import load_npz
 from implicit.als import AlternatingLeastSquares
 from dotenv import load_dotenv
 
-from src.s3_utils import upload_recommendations_to_s3
+from src.logging_set_up import setup_logging
+from src.s3_loading import upload_recommendations_to_s3
 
 # ---------- Load environment variables ---------- #
 # Load from config/.env (relative to project root)
@@ -39,11 +40,7 @@ config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 load_dotenv(os.path.join(config_dir, '.env'))
 
 # ---------- Logging setup ---------- #
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] %(message)s',
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging('als_model')
 
 # ---------- ALS Recommender ---------- #
 class ALSRecommender:
@@ -68,8 +65,7 @@ class ALSRecommender:
         Methods:
         - fit - train ALS model on user-track interactions
         - recommend - get top-N recommendations for a single given user_id
-        - evaluate - evaluate precision@k on test set
-        - generate_recommendations - generate recommendations for all users and save to parquet
+        - generate_als_recommendations - generate recommendations for all users and save to parquet
         - save - save ALS model to file
     '''
     
@@ -96,10 +92,18 @@ class ALSRecommender:
         
     def fit(self, train_matrix, user_encoder, track_encoder):
         '''
-            Train ALS model on user-track interactions.
+            Train ALS model on user-track interaction events.
+
+            Args:
+            - train_matrix - sparse user-track interaction matrix for training
+            - user_encoder - user ID to index mapping
+            - track_encoder - track ID to index mapping
+
+            Returns:
+            - None
         '''
-        logger.info(f'Training ALS model: {train_matrix.shape}, {train_matrix.nnz:,} interactions')
-        logger.info(f'Params: factors={self.factors}, reg={self.regularization}, iter={self.iterations}')
+        logger.info(f'Training ALS model: {train_matrix.shape}, {train_matrix.nnz:,} interaction events')
+        logger.info(f'Fitting params: factors={self.factors}, reg={self.regularization}, iter={self.iterations}')
         
         # Store encoders
         self.user_encoder = user_encoder
@@ -111,18 +115,37 @@ class ALSRecommender:
         train_confidence = train_matrix.copy()
         train_confidence.data = 1 + self.alpha * train_confidence.data
         
-        # Fit model (implicit expects user × item matrix: rows=users, columns=items)
+        # Fit model (user × item matrix: rows=users, columns=items)
         self.model.fit(train_confidence, show_progress=True)
         self.is_fitted = True
         
         logger.info('Model training complete')
         
-    def recommend(self, user_id, user_items, n=10, filter_already_liked=True):
+    def recommend(
+        self, 
+        user_id: int=None, 
+        user_items=None, 
+        n_recs: int=None, 
+        filter_already_liked: bool = True) -> List[Tuple[int, float]]:
         '''
             Get top-N recommendations for a single given user_id.
+
+            Args:
+            - user_id - user ID to get recommendations for
+            - user_items - user-track interaction
+            - n_recs - number of recommendations to return
+            - filter_already_liked - whether to filter out already liked items
+
+            Returns:
+            - list of recommended track_ids and scores
         '''
 
-        logger.info(f'Getting top {n} recommendations for user {user_id}')
+        # Load defaults from environment if not provided
+        if user_id is None:
+            user_id = os.getenv('USER_ID', 1)
+        if user_items is None:
+            user_items = os.getenv('USER_ITEMS', None)
+        logger.info(f'Getting top {n_recs} recommendations for user {user_id}')
 
         # Check if user exists
         if user_id not in self.user_encoder:
@@ -132,6 +155,7 @@ class ALSRecommender:
         user_idx = self.user_encoder[user_id]
         
         # Check if user index is within model bounds
+        # Needed for cold start users, that may exist in test data but not be in the train data
         if user_idx >= self.model.user_factors.shape[0]:
             logger.warning(f'User {user_id} (idx={user_idx}) out of bounds for model')
             return []
@@ -140,7 +164,7 @@ class ALSRecommender:
         track_indices, scores = self.model.recommend(
             user_idx,
             user_items[user_idx],
-            N=n,
+            N=n_recs,
             filter_already_liked_items=filter_already_liked
         )
         
@@ -155,56 +179,30 @@ class ALSRecommender:
         
         return recommendations
     
-    def evaluate(self, train_matrix, test_matrix, k=10, sample_users=10000):
-        '''
-        Evaluate precision@k on test set.
-        '''
-        logger.info(f'Evaluating precision@{k} on {sample_users} users')
-        
-        # Get users with test interactions
-        test_user_indices = np.unique(test_matrix.tocoo().row)
-        
-        # Filter to users within model bounds (users that were in training)
-        n_users = self.model.user_factors.shape[0]
-        test_user_indices = test_user_indices[test_user_indices < n_users]
-        logger.info(f'Users with test interactions within model bounds: {len(test_user_indices)}')
-        
-        # Sample users for speed
-        if sample_users and sample_users < len(test_user_indices):
-            np.random.seed(42)
-            test_user_indices = np.random.choice(test_user_indices, sample_users, replace=False)
-        
-        hits = 0
-        total = 0
-        
-        for user_idx in test_user_indices:
-            try:
-                # Get recommendations
-                rec_indices, _ = self.model.recommend(
-                    user_idx, train_matrix[user_idx], N=k, filter_already_liked_items=True
-                )
-                
-                # Get test items
-                test_items = set(test_matrix[user_idx].tocoo().col)
-                
-                if test_items:
-                    hits += len(set(rec_indices) & test_items)
-                    total += k
-            except IndexError:
-                continue
-        
-        precision = hits / total if total > 0 else 0.0
-        logger.info(f'Precision@{k}: {precision:.4f}')
-        
-        return {'precision': precision, 'users_evaluated': len(test_user_indices)}
-    
-    def generate_recommendations(self, train_matrix, n=10):
+    def generate_als_recommendations(
+        self, 
+        train_matrix, 
+        results_dir: str=None, 
+        n_recs: int=None) -> None:
         '''
             Generate recommendations for all users and save to parquet.
             Uses batch processing for better performance.
+
+            Args:
+            - train_matrix - sparse user-track interaction matrix for training
+            - results_dir - path to results directory
+            - n_recs - number of recommendations to return
+
+            Returns:
+            - None
         '''
 
-        results_dir = os.getenv('RESULTS_DIR', './results')
+        # Load defaults from environment if not provided
+        if results_dir is None:
+            results_dir = os.getenv('RESULTS_DIR', './results')
+        if n_recs is None:
+            n_recs = int(os.getenv('ALS_N_RECS', 10))
+
         output_path = os.path.join(results_dir, 'personal_als.parquet')
         
         # Get all user indices as numpy array for batch processing
@@ -215,24 +213,24 @@ class ALSRecommender:
         valid_mask = all_user_indices < n_model_users
         all_user_indices = all_user_indices[valid_mask]
         
-        logger.info(f'Generating top {n} recommendations for {len(all_user_indices):,} users (batch mode)')
+        logger.info(f'Generating top {n_recs} recommendations for {len(all_user_indices):,} users (batch mode)')
         
         # Use batch recommend for much faster processing
         track_indices_batch, scores_batch = self.model.recommend(
             all_user_indices, 
             train_matrix[all_user_indices], 
-            N=n, 
+            N=n_recs, 
             filter_already_liked_items=True
         )
         
         logger.info('Building recommendations dataframe (vectorized)')
         
         n_users = len(all_user_indices)
-        n_recs = track_indices_batch.shape[1]
+        n_recs_batch = track_indices_batch.shape[1]
         
         # Create user_id array (repeat each user_id n times)
         user_ids = np.array([self.user_decoder[idx] for idx in all_user_indices])
-        user_ids_repeated = np.repeat(user_ids, n_recs)
+        user_ids_repeated = np.repeat(user_ids, n_recs_batch)
         
         # Flatten track indices and scores
         track_indices_flat = track_indices_batch.flatten()
@@ -273,13 +271,24 @@ class ALSRecommender:
 
         return None
     
-    def save(self, filepath):
+    def save(self, models_dir: str=None):
         '''
             Save ALS model to file.
+
+            Args:
+            - models_dir - path to models directory
+
+            Returns:
+            - None
         '''
 
-        logger.info(f'Saving ALS model to {filepath}')
-        with open(filepath, 'wb') as f:
+        if models_dir is None:
+            models_dir = os.getenv('MODELS_DIR', './models')
+        als_model_path = os.path.join(models_dir, 'als_model.pkl')
+        logger.info(f'Saving ALS model to {als_model_path}')
+
+        # Save model to file
+        with open(als_model_path, 'wb') as f:
             pickle.dump({
                 'model': self.model,
                 'user_encoder': self.user_encoder,
@@ -292,16 +301,31 @@ class ALSRecommender:
                 'alpha': self.alpha,
                 'num_threads': self.num_threads,
             }, f)
-        logger.info(f'Model saved to {filepath}')
+        logger.info(f'Model saved to {als_model_path}')
 
+        return None
 
-def load_als_model(filepath):
+def load_als_model(models_dir: str=None):
     '''
         Load trained ALS model from file.
+
+        Args:
+        - models_dir - path to models directory
+
+        Returns:
+        - ALSRecommender instance
     '''
 
-    logger.info(f'Loading ALS model from {filepath}')
-    with open(filepath, 'rb') as f:
+    if models_dir is None:
+        models_dir = os.getenv('MODELS_DIR', './models')
+    als_model_path = os.path.join(models_dir, 'als_model.pkl')
+    logger.info(f'Loading ALS model from {als_model_path}')
+
+    if not os.path.exists(als_model_path):
+        logger.error(f'ALS model not found at {als_model_path}')
+        raise FileNotFoundError(f'ALS model not found at {als_model_path}')
+
+    with open(als_model_path, 'rb') as f:
         data = pickle.load(f)
     
     recommender = ALSRecommender(
@@ -319,58 +343,55 @@ def load_als_model(filepath):
     recommender.track_decoder = data['track_decoder']
     recommender.is_fitted = True
     
-    logger.info(f'Model loaded from {filepath}')
+    logger.info(f'Model loaded from {als_model_path}')
 
     return recommender
 
 
-def generate_als_recommendations(model, train_matrix, user_ids, n=10):
+# ---------- Wrapper function for ALS recommendations---------- #
+def als_recommendations(
+    preprocessed_dir: str = None, 
+    models_dir: str = None, 
+    factors: int = None, 
+    regularization: float = None, 
+    iterations: int = None, 
+    alpha: float = None, 
+    num_threads: int = None, 
+    n_recs: int = None
+) -> None:
     '''
-    Generate ALS recommendations for a list of users.
-    
-    Args:
-        model: Trained ALSRecommender instance
-        train_matrix: User-item interaction matrix
-        user_ids: List of user IDs to generate recommendations for
-        n: Number of recommendations per user
-    
-    Returns:
-        Dict mapping user_id to list of recommended track_ids
-    '''
-    logger.info(f'Generating ALS recommendations for {len(user_ids):,} users')
-    
-    recommendations = {}
-    
-    for i, user_id in enumerate(user_ids):
-        if i % 10000 == 0 and i > 0:
-            logger.info(f'Generated {i:,} / {len(user_ids):,}')
-        
-        # Get recommendations using the model's recommend method
-        recs = model.recommend(user_id, train_matrix, n=n, filter_already_liked=True)
-        # Extract just the track_ids (recommend returns list of (track_id, score) tuples)
-        recommendations[user_id] = [track_id for track_id, _ in recs]
-    
-    logger.info(f'Generated recommendations for {len(recommendations):,} users')
-    return recommendations
+        Generate ALS recommendations for all users.
 
-# ---------- Main training function ---------- #
-def train_als_model(preprocessed_dir=None):
-    '''
-        Train ALS model on preprocessed data.
-    '''
+        Args:
+        - preprocessed_dir - path to preprocessed data
+        - factors - number of latent factors
+        - regularization - regularization strength
+        - iterations - number of iterations    
+        - alpha - confidence scaling factor
+        - num_threads - number of threads to use
+        - n_recs - number of recommendations to generate
 
-    # Load config from environment
-    preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
-    factors = int(os.getenv('ALS_FACTORS', 64))
-    regularization = float(os.getenv('ALS_REGULARIZATION', 0.01))
-    iterations = int(os.getenv('ALS_ITERATIONS', 15))
-    alpha = float(os.getenv('ALS_ALPHA', 1.0))
-    num_threads = int(os.getenv('ALS_NUM_THREADS', 0))  # 0 = use all cores
-    n_recommendations = int(os.getenv('ALS_NUMBER_REC', 10))
-    
-    models_dir = os.getenv('MODELS_DIR', './models')
-    os.makedirs(models_dir, exist_ok=True)
-    
+        Returns:
+        - None
+    '''
+    # Load defaults from environment if not provided
+    if preprocessed_dir is None:
+        preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+    if models_dir is None:
+        models_dir = os.getenv('MODELS_DIR', './models')
+    if factors is None:
+        factors = int(os.getenv('ALS_FACTORS', 64))
+    if regularization is None:
+        regularization = float(os.getenv('ALS_REGULARIZATION', 0.01))
+    if iterations is None:
+        iterations = int(os.getenv('ALS_ITERATIONS', 15))
+    if alpha is None:
+        alpha = float(os.getenv('ALS_ALPHA', 1.0))
+    if num_threads is None:
+        num_threads = int(os.getenv('ALS_NUM_THREADS', 0))
+    if n_recs is None:
+        n_recs = int(os.getenv('ALS_N_RECS', 10))
+   
     logger.info('ALS model training')
 
     logger.info('Loading train matrix')
@@ -395,24 +416,15 @@ def train_als_model(preprocessed_dir=None):
         encoders['track_encoder']
     )
     
-    logger.info('Evaluating ALS model')
-    test_path = f'{preprocessed_dir}/test_matrix.npz'
-    test_matrix = load_npz(test_path)
-    recommender.evaluate(train_matrix, test_matrix, k=10, sample_users=10000)
-    
-    # Free test matrix after evaluation
-    del test_matrix
-    gc.collect()
-    
-    logger.info(f'Generating personal recommendations (n={n_recommendations})')
-    recommender.generate_recommendations(train_matrix, n=n_recommendations)
+    logger.info(f'Generating personal recommendations (n={n_recs})')
+    recommender.generate_als_recommendations(train_matrix, n_recs=n_recs)
 
     logger.info('Saving ALS model')
     model_path = os.path.join(models_dir, 'als_model.pkl')
     recommender.save(model_path)
 
-    # Free train matrix and encoders after saving
-    del train_matrix, encoders
+    # Free memory
+    del train_matrix, encoders, recommender
     gc.collect()
 
     logger.info('ALS model training complete')
@@ -426,43 +438,73 @@ if __name__ == '__main__':
     parser.add_argument('--train', action='store_true', help='Train ALS model (includes evaluation and saving)')
     parser.add_argument('--recommend', action='store_true', help='Generate recommendations for all users')
     parser.add_argument('--user-id', type=int, help='Get recommendations for a specific user ID')
+    parser.add_argument('--n-recs', type=int, default=10, help='Number of recommendations to return')
     args = parser.parse_args()
+
+    logger.info('Running ALS model training pipeline')
+
+    # Check required environment variables
+    required_env_vars = [
+        'PREPROCESSED_DATA_DIR', 
+        'RESULTS_DIR', 
+        'MODELS_DIR', 
+        'SEED',
+        'ALS_FACTORS', 
+        'ALS_REGULARIZATION', 
+        'ALS_ITERATIONS', 
+        'ALS_ALPHA', 
+        'ALS_NUM_THREADS', 
+        'ALS_N_REC'
+    ]
+
+    missing_vars = [var for var in required_env_vars if os.getenv(var) is None]
+    if missing_vars:
+        logger.error(f'Missing required environment variables: {", ".join(missing_vars)}')
+        raise EnvironmentError(f'Missing required environment variables: {", ".join(missing_vars)}')
+
+    # Load config from environment
+    preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+    models_dir = os.getenv('MODELS_DIR', './models')
+    factors = int(os.getenv('ALS_FACTORS', 64))
+    regularization = float(os.getenv('ALS_REGULARIZATION', 0.01))
+    iterations = int(os.getenv('ALS_ITERATIONS', 15))
+    alpha = float(os.getenv('ALS_ALPHA', 1.0))
+    num_threads = int(os.getenv('ALS_NUM_THREADS', 0))  # 0 = use all cores
+    n_recs = int(os.getenv('ALS_N_REC', 10))
+
+    model_path = os.path.join(models_dir, 'als_model.pkl')
+    recommender = load_als_model(model_path)
+    train_matrix = load_npz(f'{preprocessed_dir}/train_matrix.npz')
 
     if args.train:
         logger.info('Starting ALS model training pipeline')
-        train_als_model()
+        als_recommendations()
     
     elif args.recommend or args.user_id:
-        # Load model and data
-        models_dir = os.getenv('MODELS_DIR', './models')
-        preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+        # Load model and data        
         
-        model_path = os.path.join(models_dir, 'als_model.pkl')
         if not os.path.exists(model_path):
             logger.error(f'Model not found at {model_path}. Run with --train first.')
-            exit(1)
-        
-        recommender = load_als_model(model_path)
-        train_matrix = load_npz(f'{preprocessed_dir}/train_matrix.npz')
+            exit(1)       
         
         if args.user_id:
             # Get recommendations for a specific user
-            recommendations = recommender.recommend(args.user_id, train_matrix, n=args.n_recs)
-            print(f'\nTop {args.n_recs} recommendations for user {args.user_id}:')
+            recommendations = recommender.recommend(args.user_id, train_matrix, n_recs=args.n_recs)
+            print(f'Top {args.n_recs} recommendations for user {args.user_id}:')
             for track_id, score in recommendations:
                 print(f'Track {track_id}: {score:.4f}')
         else:
             # Generate recommendations for all users
             logger.info('Generating recommendations for all users')
-            recommender.generate_recommendations(train_matrix, n=args.n_recs)
+            recommender.generate_als_recommendations(train_matrix, n_recs=args.n_recs)
     
     else:
+        logger.error('Invalid command. Use --train, --recommend, or --user-id <user_id>')
         parser.print_help()
-        print('\nExamples:')
-        print('  python -m src.collaborative_rec --train')
-        print('  python -m src.collaborative_rec --recommend')
-        print('  python -m src.collaborative_rec --user-id 12345 --n-recs 20')
+        print('Invalid command. Use --train, --recommend, or --user-id <user_id>')
+    
+    logger.info('ALS model training pipeline completed')
 
 # ---------- All exports ---------- #
-__all__ = ['ALSRecommender', 'load_als_model', 'train_als_model', 'generate_als_recommendations']
+__all__ = ['ALSRecommender', 'load_als_model', 'als_recommendations']
 

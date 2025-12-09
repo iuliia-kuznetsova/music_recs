@@ -36,7 +36,8 @@ from typing import List
 import polars as pl
 from dotenv import load_dotenv
 
-from src.s3_utils import upload_recommendations_to_s3
+from src.logging_set_up import setup_logging
+from src.s3_loading import upload_recommendations_to_s3
 
 # ---------- Load environment variables ---------- #
 # Load from config/.env (relative to project root)
@@ -44,11 +45,7 @@ config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 load_dotenv(os.path.join(config_dir, '.env'))
 
 # ---------- Logging setup ---------- #
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] %(message)s',
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging('popularity_based_model')
 
 # ---------- Popularity-based Recommender ---------- #
 class PopularityRecommender:
@@ -73,15 +70,35 @@ class PopularityRecommender:
     def __init__(self):
         self.top_tracks = None
         
-    def fit(self, preprocessed_dir: str, method: str, with_metadata: bool, n: int):
+    def fit(
+        self, 
+        preprocessed_dir: str=None, 
+        method: str=None, 
+        with_metadata: bool=None, 
+        n: int=None
+    ) -> None:
         '''
             Compute track popularity from events based on the method provided.
             
             Args:
-                preprocessed_dir - path to preprocessed directory,
-                method - method to compute track popularity (listen_count, user_count, avg_listens),
-                with_metadata - whether to add metadata to the top tracks.
+            - preprocessed_dir - path to preprocessed directory,
+            - method - method to compute track popularity (listen_count, user_count, avg_listens),
+            - with_metadata - whether to add metadata to the top tracks.
+            - n - number of top popular tracks to return
+
+            Returns:
+            - None
         '''
+
+        # Load defaults from environment if not provided
+        if preprocessed_dir is None:
+            preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+        if method is None:
+            method = os.getenv('POPULARITY_METHOD', 'listen_count')
+        if with_metadata is None:
+            with_metadata = os.getenv('POPULARITY_WITH_METADATA', True)
+        if n is None:
+            n = int(os.getenv('POPULARITY_TOP_N', 100))
 
         # Load events
         try:
@@ -185,7 +202,7 @@ class PopularityRecommender:
     def recommend(
         self, 
         user_id: int, 
-        n_recs: int = 10,
+        n_recs: int = None,
         user_listened: set = None,
         preprocessed_dir: str = None
     ) -> List[int]:
@@ -194,11 +211,20 @@ class PopularityRecommender:
             that the user hasn't listened to.
             
             Args:
-                user_id - user ID to generate recommendations for.
-                n_recs - number of recommendations to return.
-                user_listened - set of track_ids the user has listened to (optional, for efficiency).
-                preprocessed_dir - path to load events from if user_listened not provided.
+            - user_id - user ID to generate recommendations for.
+            - n_recs - number of recommendations to return.
+            - user_listened - set of track_ids the user has listened to (optional, for efficiency).
+            - preprocessed_dir - path to load events from if user_listened not provided.
+
+            Returns:
+            - list of recommended track_ids
         '''
+
+        # Load defaults from environment if not provided
+        if preprocessed_dir is None:
+            preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+        if n_recs is None:
+            n_recs = int(os.getenv('POPULARITY_N_RECS', 10))
         if self.top_tracks is None:
             raise ValueError('Model not fitted.')
 
@@ -227,21 +253,31 @@ class PopularityRecommender:
         
         return recommendations['track_id'].to_list()
 
-def generate_popularity_recommendations(preprocessed_dir: str = None, n: int = 100) -> List[int]:
+def generate_popularity_recommendations(
+    preprocessed_dir: str = None, 
+    n: int = None
+) -> List[int]:
     '''
-    Load top N popular track IDs from cache or compute from scratch.
-    
-    Args:
-        preprocessed_dir: Path to preprocessed data directory (optional, uses env var if not provided)
-        n: Number of top popular tracks to return
+        Load top N popular track ids or compute from scratch.
         
-    Returns:
-        List of track_ids sorted by popularity
+        Args:
+        - preprocessed_dir - path to preprocessed data directory (optional, uses env var if not provided)
+        - n - number of top popular tracks to return
+            
+        Returns:
+        - list of track_ids sorted by popularity
     '''
+
+    # Load defaults from environment if not provided
+    if preprocessed_dir is None:
+        preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
+    if n is None:
+        n = int(os.getenv('POPULARITY_TOP_N', 100))
+
     results_dir = os.getenv('RESULTS_DIR', './results')
     popularity_path = os.path.join(results_dir, 'top_popular.parquet')
     
-    # Load from cache if exists
+    # Load popularity recommendations if exist
     if os.path.exists(popularity_path):
         logger.info(f'Loading cached popularity recommendations from {popularity_path}')
         popular_tracks = pl.read_parquet(popularity_path)
@@ -273,14 +309,31 @@ if __name__ == '__main__':
     parser.add_argument('--with-metadata', action='store_true', default=False, help='Add metadata to the top popular tracks')
     args = parser.parse_args()
 
+    logger.info('Running popularity-based model training pipeline')
+
+    # Check required environment variables
+    required_env_vars = [
+        'PREPROCESSED_DATA_DIR', 
+        'RESULTS_DIR', 
+        'POPULARITY_METHOD', 
+        'POPULARITY_TOP_N', 
+        'POPULARITY_N_RECS', 
+    ]
+
+    missing_vars = [var for var in required_env_vars if os.getenv(var) is None]
+    if missing_vars:
+        logger.error(f'Missing required environment variables: {", ".join(missing_vars)}')
+        raise EnvironmentError(f'Missing required environment variables: {", ".join(missing_vars)}')
+
+    # Load config from environment
     results_dir = os.getenv('RESULTS_DIR', './results')
     preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
-    user_id = args.user_id or os.getenv('USER_ID', None)
-    n = args.n or os.getenv('POPULARITY_TOP_N', 100)
-    n_recs = args.n_recs or os.getenv('POPULARITY_N_RECS', 10)
-    method = args.method or os.getenv('POPULARITY_METHOD', 'listen_count')
-    filter_listened = args.filter_listened or os.getenv('POPULARITY_FILTER_LISTENED', True)
-    with_metadata = args.with_metadata or os.getenv('POPULARITY_WITH_METADATA', True)
+    user_id = args.user_id or int(os.getenv('USER_ID', None))
+    n = args.n or int(os.getenv('POPULARITY_TOP_N', 100))
+    n_recs = args.n_recs or int(os.getenv('POPULARITY_N_RECS', 10))
+    method = args.method or str(os.getenv('POPULARITY_METHOD', 'listen_count'))
+    filter_listened = args.filter_listened or bool(os.getenv('POPULARITY_FILTER_LISTENED', True))
+    with_metadata = args.with_metadata or bool(os.getenv('POPULARITY_WITH_METADATA', True))
 
     if user_id:
         logger.info(f'Getting recommendations for user {user_id}')
@@ -309,6 +362,8 @@ if __name__ == '__main__':
             n=n
         )
         logger.info(f'Saved top {n} popular tracks')
+
+    logger.info('Popularity-based model training pipeline completed')
 
 # ---------- All exports ---------- #
 __all__ = ['PopularityRecommender', 'generate_popularity_recommendations']
