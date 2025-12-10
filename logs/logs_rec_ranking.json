@@ -1,17 +1,65 @@
-{"timestamp": "2025-12-10 13:20:12,263", "module": "rec_ranking", "level": "INFO", "message": "Logging to logs_rec_ranking.json setup completed"}
-{"timestamp": "2025-12-10 14:01:55,551", "module": "rec_ranking", "level": "INFO", "message": "Logging to logs_rec_ranking.json setup completed"}
-{"timestamp": "2025-12-10 14:29:08,039", "module": "rec_ranking", "level": "INFO", "message": "Generating ranked recommendations"}
-{"timestamp": "2025-12-10 14:29:08,039", "module": "rec_ranking", "level": "INFO", "message": "Loading CatBoost model from ./models/catboost_classifier.cbm"}
-{"timestamp": "2025-12-10 14:29:08,088", "module": "rec_ranking", "level": "INFO", "message": "Using provided ALS candidates: 7,223,180 rows for 722,318 users"}
-{"timestamp": "2025-12-10 14:29:08,106", "module": "rec_ranking", "level": "INFO", "message": "Using provided popularity candidates: 7,223,180 rows for 722,318 users"}
-{"timestamp": "2025-12-10 14:29:09,968", "module": "rec_ranking", "level": "INFO", "message": "Merged candidates: 13,924,709 rows for 722,318 users"}
-{"timestamp": "2025-12-10 14:29:12,030", "module": "rec_ranking", "level": "INFO", "message": "Computing track custom features"}
-{"timestamp": "2025-12-10 14:29:12,030", "module": "rec_ranking", "level": "INFO", "message": "Computing genre popularity"}
-{"timestamp": "2025-12-10 14:29:20,664", "module": "rec_ranking", "level": "INFO", "message": "Genre popularity computed for 133 genres"}
-{"timestamp": "2025-12-10 14:29:20,665", "module": "rec_ranking", "level": "INFO", "message": "Computing artist popularity"}
-{"timestamp": "2025-12-10 14:29:29,587", "module": "rec_ranking", "level": "INFO", "message": "Artist popularity computed for 115,336 artists"}
-{"timestamp": "2025-12-10 14:29:29,587", "module": "rec_ranking", "level": "INFO", "message": "Computing track group size"}
-{"timestamp": "2025-12-10 14:29:29,643", "module": "rec_ranking", "level": "INFO", "message": "Track group size computed for 803,264 track groups"}
-{"timestamp": "2025-12-10 14:29:30,683", "module": "rec_ranking", "level": "INFO", "message": "DONE: Computed track custom features for 804,694 tracks"}
-{"timestamp": "2025-12-10 14:29:32,979", "module": "rec_ranking", "level": "INFO", "message": "Predicting scores"}
-{"timestamp": "2025-12-10 14:35:15,509", "module": "rec_ranking", "level": "INFO", "message": "Generated recommendations for 722,318 users"}
+{"timestamp": "2025-12-10 19:29:37,323", "module": "rec_ranking", "level": "INFO", "message": "Logging to logs_rec_ranking.json setup completed"}
+{"timestamp": "2025-12-10 20:54:25,666", "module": "rec_ranking", "level": "INFO", "message": "Running recommendation ranking pipeline"}
+{"timestamp": "2025-12-10 20:54:25,669", "module": "rec_ranking", "level": "INFO", "message": "Determining target users"}
+{"timestamp": "2025-12-10 20:54:25,880", "module": "rec_ranking", "level": "INFO", "message": "Sampling 5,000 users"}
+{"timestamp": "2025-12-10 20:54:25,890", "module": "rec_ranking", "level": "INFO", "message": "Loading catalog and train events for feature computation"}
+{"timestamp": "2025-12-10 20:54:26,699", "module": "rec_ranking", "level": "INFO", "message": "Computing track features"}
+{"timestamp": "2025-12-10 20:54:26,699", "module": "rec_ranking", "level": "INFO", "message": "Computing track custom features"}
+{"timestamp": "2025-12-10 20:54:26,699", "module": "rec_ranking", "level": "INFO", "message": "Computing genre popularity"}
+{"timestamp": "2025-12-10 20:54:32,871", "module": "rec_ranking", "level": "INFO", "message": "Genre popularity computed for 135 genres"}
+{"timestamp": "2025-12-10 20:54:32,871", "module": "rec_ranking", "level": "INFO", "message": "Computing artist popularity"}
+{"timestamp": "2025-12-10 20:54:39,538", "module": "rec_ranking", "level": "INFO", "message": "Artist popularity computed for 115,260 artists"}
+{"timestamp": "2025-12-10 20:54:39,539", "module": "rec_ranking", "level": "INFO", "message": "Computing track group size"}
+{"timestamp": "2025-12-10 20:54:39,585", "module": "rec_ranking", "level": "INFO", "message": "Track group size computed for 803,496 track groups"}
+{"timestamp": "2025-12-10 20:54:39,680", "module": "rec_ranking", "level": "INFO", "message": "DONE: Computed track custom features for 804,916 tracks"}
+{"timestamp": "2025-12-10 20:54:39,712", "module": "rec_ranking", "level": "INFO", "message": "Loading candidates"}
+{"timestamp": "2025-12-10 20:54:39,712", "module": "rec_ranking", "level": "INFO", "message": "Loading and merging candidates from ALS + popularity-based sources"}
+{"timestamp": "2025-12-10 20:54:39,713", "module": "rec_ranking", "level": "INFO", "message": "Loading ALS candidates"}
+{"timestamp": "2025-12-10 20:54:39,870", "module": "rec_ranking", "level": "INFO", "message": "DONE: Loaded 13,717,680 ALS candidates for 1,371,768 users"}
+{"timestamp": "2025-12-10 20:54:39,910", "module": "rec_ranking", "level": "INFO", "message": "Filtered to 5,000 users"}
+{"timestamp": "2025-12-10 20:54:39,910", "module": "rec_ranking", "level": "INFO", "message": "Loading popularity-based candidates"}
+{"timestamp": "2025-12-10 20:54:39,951", "module": "rec_ranking", "level": "INFO", "message": "DONE: Generated 500,000 popularity candidates for 5,000 users"}
+{"timestamp": "2025-12-10 20:54:40,033", "module": "rec_ranking", "level": "INFO", "message": "Merged: 530,921 candidates, 5,000 users"}
+{"timestamp": "2025-12-10 20:54:40,033", "module": "rec_ranking", "level": "INFO", "message": "Adding track features to candidates"}
+{"timestamp": "2025-12-10 20:54:40,098", "module": "rec_ranking", "level": "INFO", "message": "Loading test events for labels"}
+{"timestamp": "2025-12-10 20:54:40,162", "module": "rec_ranking", "level": "INFO", "message": "Adding labels and filtering users with positive examples"}
+{"timestamp": "2025-12-10 20:54:40,162", "module": "rec_ranking", "level": "INFO", "message": "Adding target labels to candidates"}
+{"timestamp": "2025-12-10 20:54:41,239", "module": "rec_ranking", "level": "INFO", "message": "Number of positive examples: 1,562, Number of negative examples: 529,359"}
+{"timestamp": "2025-12-10 20:54:41,270", "module": "rec_ranking", "level": "INFO", "message": "Filtering users with positive examples"}
+{"timestamp": "2025-12-10 20:54:41,270", "module": "rec_ranking", "level": "INFO", "message": "Filtering users with positive examples"}
+{"timestamp": "2025-12-10 20:54:41,284", "module": "rec_ranking", "level": "INFO", "message": "Users with positives: 727"}
+{"timestamp": "2025-12-10 20:54:41,284", "module": "rec_ranking", "level": "INFO", "message": "Sampling negatives"}
+{"timestamp": "2025-12-10 20:54:41,284", "module": "rec_ranking", "level": "INFO", "message": "Sampling negatives (max 4x positives per user)"}
+{"timestamp": "2025-12-10 20:54:41,304", "module": "rec_ranking", "level": "INFO", "message": "Training samples: 7,810 (pos=1,562, neg=6,248)"}
+{"timestamp": "2025-12-10 20:54:41,305", "module": "rec_ranking", "level": "INFO", "message": "Training model"}
+{"timestamp": "2025-12-10 20:54:41,305", "module": "rec_ranking", "level": "INFO", "message": "Training CatBoostClassifier"}
+{"timestamp": "2025-12-10 20:54:42,550", "module": "rec_ranking", "level": "INFO", "message": "artist_popularity: 30.67"}
+{"timestamp": "2025-12-10 20:54:42,550", "module": "rec_ranking", "level": "INFO", "message": "popularity_score: 26.85"}
+{"timestamp": "2025-12-10 20:54:42,550", "module": "rec_ranking", "level": "INFO", "message": "genre_popularity: 22.36"}
+{"timestamp": "2025-12-10 20:54:42,550", "module": "rec_ranking", "level": "INFO", "message": "als_score: 20.02"}
+{"timestamp": "2025-12-10 20:54:42,550", "module": "rec_ranking", "level": "INFO", "message": "track_group_size: 0.10"}
+{"timestamp": "2025-12-10 20:54:42,551", "module": "rec_ranking", "level": "INFO", "message": "DONE: CatBoostClassifier trained successfully"}
+{"timestamp": "2025-12-10 20:54:42,594", "module": "rec_ranking", "level": "INFO", "message": "Saved model to ./models/catboost_classifier.cbm"}
+{"timestamp": "2025-12-10 20:54:42,594", "module": "rec_ranking", "level": "INFO", "message": "Predicting and ranking"}
+{"timestamp": "2025-12-10 20:54:42,594", "module": "rec_ranking", "level": "INFO", "message": "Predicting and ranking"}
+{"timestamp": "2025-12-10 20:54:42,632", "module": "rec_ranking", "level": "INFO", "message": "DONE: Ranked 76,942 candidates for 727 users"}
+{"timestamp": "2025-12-10 20:54:42,665", "module": "rec_ranking", "level": "INFO", "message": "Extracting top-K recommendations per user"}
+{"timestamp": "2025-12-10 20:54:42,666", "module": "rec_ranking", "level": "INFO", "message": "DONE: Top-10: 7,270 recommendations for 727 users"}
+{"timestamp": "2025-12-10 20:54:42,694", "module": "rec_ranking", "level": "INFO", "message": "Saved 7,270 recommendations to ./results/recommendations.parquet"}
+{"timestamp": "2025-12-10 20:54:42,863", "module": "rec_ranking", "level": "INFO", "message": "Uploaded recommendations.parquet to S3"}
+{"timestamp": "2025-12-10 20:54:42,914", "module": "rec_ranking", "level": "INFO", "message": "DONE: Recommendation ranking completed successfully"}
+{"timestamp": "2025-12-10 21:19:51,152", "module": "rec_ranking", "level": "INFO", "message": "Generating ranked recommendations"}
+{"timestamp": "2025-12-10 21:19:51,152", "module": "rec_ranking", "level": "INFO", "message": "Loading CatBoost model from ./models/catboost_classifier.cbm"}
+{"timestamp": "2025-12-10 21:19:51,169", "module": "rec_ranking", "level": "INFO", "message": "Using provided ALS candidates: 7,215,970 rows for 721,597 users"}
+{"timestamp": "2025-12-10 21:19:51,186", "module": "rec_ranking", "level": "INFO", "message": "Using provided popularity candidates: 7,215,970 rows for 721,597 users"}
+{"timestamp": "2025-12-10 21:19:52,780", "module": "rec_ranking", "level": "INFO", "message": "Merged candidates: 13,911,530 rows for 721,597 users"}
+{"timestamp": "2025-12-10 21:19:54,690", "module": "rec_ranking", "level": "INFO", "message": "Computing track custom features"}
+{"timestamp": "2025-12-10 21:19:54,690", "module": "rec_ranking", "level": "INFO", "message": "Computing genre popularity"}
+{"timestamp": "2025-12-10 21:20:02,269", "module": "rec_ranking", "level": "INFO", "message": "Genre popularity computed for 135 genres"}
+{"timestamp": "2025-12-10 21:20:02,273", "module": "rec_ranking", "level": "INFO", "message": "Computing artist popularity"}
+{"timestamp": "2025-12-10 21:20:09,659", "module": "rec_ranking", "level": "INFO", "message": "Artist popularity computed for 115,260 artists"}
+{"timestamp": "2025-12-10 21:20:09,659", "module": "rec_ranking", "level": "INFO", "message": "Computing track group size"}
+{"timestamp": "2025-12-10 21:20:09,703", "module": "rec_ranking", "level": "INFO", "message": "Track group size computed for 803,496 track groups"}
+{"timestamp": "2025-12-10 21:20:10,750", "module": "rec_ranking", "level": "INFO", "message": "DONE: Computed track custom features for 804,916 tracks"}
+{"timestamp": "2025-12-10 21:20:13,015", "module": "rec_ranking", "level": "INFO", "message": "Predicting scores"}
+{"timestamp": "2025-12-10 21:25:02,379", "module": "rec_ranking", "level": "INFO", "message": "Generated recommendations for 721,597 users"}

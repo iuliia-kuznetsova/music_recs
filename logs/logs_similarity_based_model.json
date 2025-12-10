@@ -1,0 +1,55 @@
+{"timestamp": "2025-12-10 19:29:36,938", "module": "similarity_based_model", "level": "INFO", "message": "Logging to logs_similarity_based_model.json setup completed"}
+{"timestamp": "2025-12-10 20:24:16,392", "module": "similarity_based_model", "level": "INFO", "message": "Starting similarity-based model training and recommendations"}
+{"timestamp": "2025-12-10 20:24:16,392", "module": "similarity_based_model", "level": "INFO", "message": "Loading ALS model"}
+{"timestamp": "2025-12-10 20:24:17,059", "module": "similarity_based_model", "level": "INFO", "message": "DONE: Pretrained ALS model loaded successfully"}
+{"timestamp": "2025-12-10 20:24:17,059", "module": "similarity_based_model", "level": "INFO", "message": "Fitting similarity-based model"}
+{"timestamp": "2025-12-10 20:24:17,060", "module": "similarity_based_model", "level": "INFO", "message": "Loaded 804,867 tracks"}
+{"timestamp": "2025-12-10 20:24:17,060", "module": "similarity_based_model", "level": "INFO", "message": "DONE: Similarity-based model fitted successfully"}
+{"timestamp": "2025-12-10 20:24:17,060", "module": "similarity_based_model", "level": "INFO", "message": "Generating similarity recommendations"}
+{"timestamp": "2025-12-10 20:24:17,060", "module": "similarity_based_model", "level": "INFO", "message": "Building similarity indexes: top 10 per track (batch_size=50,000)"}
+{"timestamp": "2025-12-10 20:24:17,097", "module": "similarity_based_model", "level": "INFO", "message": "Computing similar items for 804,867 tracks in 17 batches"}
+{"timestamp": "2025-12-10 20:24:17,098", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 1/17 (tracks 0-50,000, 5.9%)"}
+{"timestamp": "2025-12-10 20:26:09,851", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 1 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:26:09,917", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 2/17 (tracks 50,000-100,000, 11.8%)"}
+{"timestamp": "2025-12-10 20:27:59,899", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 2 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:27:59,968", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 3/17 (tracks 100,000-150,000, 17.6%)"}
+{"timestamp": "2025-12-10 20:29:50,067", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 3 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:29:50,134", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 4/17 (tracks 150,000-200,000, 23.5%)"}
+{"timestamp": "2025-12-10 20:31:42,333", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 4 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:31:42,404", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 5/17 (tracks 200,000-250,000, 29.4%)"}
+{"timestamp": "2025-12-10 20:33:36,417", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 5 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:33:36,484", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 6/17 (tracks 250,000-300,000, 35.3%)"}
+{"timestamp": "2025-12-10 20:35:28,269", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 6 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:35:28,345", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 7/17 (tracks 300,000-350,000, 41.2%)"}
+{"timestamp": "2025-12-10 20:37:20,942", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 7 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:37:21,010", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 8/17 (tracks 350,000-400,000, 47.1%)"}
+{"timestamp": "2025-12-10 20:39:12,335", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 8 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:39:12,408", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 9/17 (tracks 400,000-450,000, 52.9%)"}
+{"timestamp": "2025-12-10 20:41:02,761", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 9 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:41:02,835", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 10/17 (tracks 450,000-500,000, 58.8%)"}
+{"timestamp": "2025-12-10 20:42:52,030", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 10 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:42:52,100", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 11/17 (tracks 500,000-550,000, 64.7%)"}
+{"timestamp": "2025-12-10 20:44:42,899", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 11 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:44:42,971", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 12/17 (tracks 550,000-600,000, 70.6%)"}
+{"timestamp": "2025-12-10 20:46:33,683", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 12 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:46:33,753", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 13/17 (tracks 600,000-650,000, 76.5%)"}
+{"timestamp": "2025-12-10 20:48:24,585", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 13 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:48:24,656", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 14/17 (tracks 650,000-700,000, 82.4%)"}
+{"timestamp": "2025-12-10 20:50:15,242", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 14 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:50:15,316", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 15/17 (tracks 700,000-750,000, 88.2%)"}
+{"timestamp": "2025-12-10 20:52:04,665", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 15 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:52:04,738", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 16/17 (tracks 750,000-800,000, 94.1%)"}
+{"timestamp": "2025-12-10 20:53:56,156", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 16 to checkpoint (50,000 tracks)"}
+{"timestamp": "2025-12-10 20:53:56,219", "module": "similarity_based_model", "level": "INFO", "message": "Processing batch 17/17 (tracks 800,000-804,867, 100.0%)"}
+{"timestamp": "2025-12-10 20:54:07,338", "module": "similarity_based_model", "level": "INFO", "message": "Saved batch 17 to checkpoint (4,867 tracks)"}
+{"timestamp": "2025-12-10 20:54:07,384", "module": "similarity_based_model", "level": "INFO", "message": "Completed processing all 17 batches"}
+{"timestamp": "2025-12-10 20:54:07,384", "module": "similarity_based_model", "level": "INFO", "message": "Merging all batches"}
+{"timestamp": "2025-12-10 20:54:10,366", "module": "similarity_based_model", "level": "INFO", "message": "Merged 804,867 tracks from 17 batches"}
+{"timestamp": "2025-12-10 20:54:10,367", "module": "similarity_based_model", "level": "INFO", "message": "Converting to flat table format"}
+{"timestamp": "2025-12-10 20:54:18,225", "module": "similarity_based_model", "level": "INFO", "message": "Saved flat index with 8,048,670 similarity pairs to ./results/similar.parquet"}
+{"timestamp": "2025-12-10 20:54:21,087", "module": "similarity_based_model", "level": "INFO", "message": "Saved dictionary index for 804,867 tracks to ./results/similar_tracks_index.pkl"}
+{"timestamp": "2025-12-10 20:54:24,639", "module": "similarity_based_model", "level": "INFO", "message": "Uploaded similar.parquet to S3"}
+{"timestamp": "2025-12-10 20:54:24,639", "module": "similarity_based_model", "level": "INFO", "message": "Cleaning up checkpoint files"}
+{"timestamp": "2025-12-10 20:54:24,655", "module": "similarity_based_model", "level": "INFO", "message": "Checkpoint files cleaned up"}
+{"timestamp": "2025-12-10 20:54:25,544", "module": "similarity_based_model", "level": "INFO", "message": "DONE: Similarity recommendations generated successfully"}
+{"timestamp": "2025-12-10 20:54:25,544", "module": "similarity_based_model", "level": "INFO", "message": "DONE: Similarity-based model training and recommendations completed successfully"}

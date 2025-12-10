@@ -69,19 +69,20 @@ class ALSRecommender:
         - save - save ALS model to file
     '''
     
-    def __init__(self, factors=64, regularization=0.01, iterations=15, alpha=1.0, num_threads=0):
+    def __init__(self, factors=64, regularization=0.01, iterations=15, alpha=1.0, num_threads=0, seed=42):
         self.factors = factors
         self.regularization = regularization
         self.iterations = iterations
         self.alpha = alpha
         self.num_threads = num_threads  # 0 means use all available cores
+        self.seed = seed
         
         self.model = AlternatingLeastSquares(
             factors=factors,
             regularization=regularization,
             iterations=iterations,
             num_threads=num_threads,
-            random_state=42
+            random_state=seed
         )
         
         self.user_encoder = None
@@ -370,6 +371,7 @@ class ALSRecommender:
                 'iterations': self.iterations,
                 'alpha': self.alpha,
                 'num_threads': self.num_threads,
+                'seed': self.seed,
             }, f)
         logger.info('DONE: ALS model saved successfully')
 
@@ -403,7 +405,8 @@ def load_als_model(models_dir: str=None):
         regularization=data['regularization'],
         iterations=data['iterations'],
         alpha=data['alpha'],
-        num_threads=data.get('num_threads', 0)
+        num_threads=data.get('num_threads', 0),
+        seed=data.get('seed', 42)
     )
     
     recommender.model = data['model']
@@ -429,7 +432,8 @@ def als_recommendations(
     num_threads: int = None, 
     n_recs: int = None,
     batch_size: int = None,
-    resume: bool = True
+    resume: bool = True,
+    seed: int = None
 ) -> None:
     '''
         Generate ALS recommendations for all users.
@@ -444,6 +448,7 @@ def als_recommendations(
         - n_recs - number of recommendations to generate
         - batch_size - number of users per batch for recommendation generation
         - resume - whether to resume from existing checkpoints
+        - seed - random seed for reproducibility
 
         Returns:
         - None
@@ -467,6 +472,8 @@ def als_recommendations(
         n_recs = int(os.getenv('ALS_N_RECS', 10))
     if batch_size is None:
         batch_size = int(os.getenv('ALS_BATCH_SIZE', 50000))
+    if seed is None:
+        seed = int(os.getenv('SEED', 42))
    
     logger.info('Starting ALS model training and recommendations')
 
@@ -484,7 +491,8 @@ def als_recommendations(
         regularization=regularization,
         iterations=iterations,
         alpha=alpha,
-        num_threads=num_threads
+        num_threads=num_threads,
+        seed=seed
     )
     recommender.fit(
         train_matrix,

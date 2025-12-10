@@ -171,5 +171,3 @@ cython_debug/
 env_recsys_start/
 venv_recsys_start/
 .venv_recsys/
-
-*.md

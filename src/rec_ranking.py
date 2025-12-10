@@ -4,10 +4,10 @@
     This module provides functionality to train and evaluate a recommendation ranking model using CatBoost.
 
     Pipeline:
-    1. Load candidates from ALS + similar-based sources
+    1. Load candidates from ALS + popularity-based sources
     2. Add target labels from events
     3. Filter users with positives and sample negatives
-    4. Train CatBoostClassifier
+    4. Train CatBoostClassifier with ALS, popularity, and custom features
     5. Predict and extract top-K recommendations
 
     Usage examples:
@@ -319,65 +319,22 @@ def load_als_candidates(results_dir: str) -> pl.DataFrame:
     # Return ALS candidates 
     return als_candidates
 
-# ---------- Load similar-based recommendations---------- #
-def load_similar_candidates(
-    results_dir: str, 
-    events: pl.DataFrame, 
-    max_similar: int
-) -> pl.DataFrame:
-    '''
-        Load similar-based candidates by expanding user history with similar tracks.
-
-        Args:
-        - results_dir - path to results directory
-        - events - events dataframe
-        - max_similar - maximum number of similar tracks to load
-
-        Returns:
-        - dataframe with similar-based candidates
-    '''
-
-    similar_path = os.path.join(results_dir, 'similar.parquet')
-    logger.info(f'Loading similar-based candidates from {similar_path}')
-    similar = pl.read_parquet(similar_path).filter(pl.col('rank') <= max_similar)
-    user_tracks = events.select(['user_id', 'track_id']).unique()
-    
-    # Join user tracks with similar tracks and aggregate similarity scores
-    similar_candidates = (
-        user_tracks
-            .join(similar.select(['track_id', 'similar_track_id', 'similarity_score']), on='track_id', how='inner')
-            .select(['user_id', pl.col('similar_track_id').alias('track_id'), 'similarity_score'])
-            .group_by(['user_id', 'track_id'])
-            .agg(pl.max('similarity_score').alias('similar_score'))
-    )
-    
-    # Free up memory
-    gc.collect()
-
-    logger.info(f'DONE: Generated {similar_candidates.height:,} candidates for {similar_candidates["user_id"].n_unique():,} users')
-    # Return similar_based candidates
-    return similar_candidates
-
 # ---------- Load and merge candidates ---------- #
 def load_and_merge_candidates(
     results_dir: str, 
-    events: pl.DataFrame, 
-    user_ids: List[int], 
-    max_similar: int
+    user_ids: List[int]
 ) -> pl.DataFrame:
     '''
-        Load and merge candidates from ALS + similar-based + popularity-based sources.
+        Load and merge candidates from ALS + popularity-based sources.
 
         Args:
         - results_dir - path to results directory
-        - events - events dataframe
         - user_ids - list of user ids
-        - max_similar - maximum number of similar tracks to load
 
         Returns:
         - dataframe with merged candidates
     '''
-    logger.info('Loading and merging candidates from ALS + similar-based + popularity-based sources')
+    logger.info('Loading and merging candidates from ALS + popularity-based sources')
     
     # Load ALS candidates
     als_candidates = load_als_candidates(results_dir)
@@ -385,35 +342,23 @@ def load_and_merge_candidates(
     # Filter candidates to target users
     if user_ids is not None:
         als_candidates = als_candidates.filter(pl.col('user_id').is_in(user_ids))
-        events = events.filter(pl.col('user_id').is_in(user_ids))
         logger.info(f'Filtered to {len(user_ids):,} users')
-    
-    # Load similar-based candidates
-    similar_candidates = load_similar_candidates(results_dir, events, max_similar)
     
     # Load popularity-based candidates
     popular_candidates = load_popular_candidates(results_dir, user_ids)
     
-    # Merge candidates: ALS + similar
+    # Merge candidates: ALS + popularity
     candidates = (
         als_candidates
-            .join(similar_candidates, on=['user_id', 'track_id'], how='full', coalesce=True)
-            .with_columns([pl.col('als_score').fill_null(0.0), pl.col('similar_score').fill_null(0.0)])
-    )
-    
-    # Merge with popularity candidates
-    candidates = (
-        candidates
             .join(popular_candidates, on=['user_id', 'track_id'], how='full', coalesce=True)
             .with_columns([
                 pl.col('als_score').fill_null(0.0), 
-                pl.col('similar_score').fill_null(0.0),
                 pl.col('popularity_score').fill_null(0.0)
             ])
     )
     
     # Free up memory
-    del als_candidates, similar_candidates, popular_candidates
+    del als_candidates, popular_candidates
     gc.collect()
 
     logger.info(f'Merged: {candidates.height:,} candidates, {candidates["user_id"].n_unique():,} users')
@@ -621,7 +566,6 @@ def run_ranking_pipeline(
     sample_users: int = None, 
     iterations: int = None, 
     negatives_multiplier: int = None, 
-    max_similar: int = None, 
     seed: int = None
 ) -> None:
     '''
@@ -643,7 +587,7 @@ def run_ranking_pipeline(
     if models_dir is None:
         models_dir = os.getenv('MODELS_DIR', './models')
     if features is None:
-        features = ast.literal_eval(os.getenv('RANKING_FEATURES', "['als_score', 'similar_score', 'popularity_score', 'genre_popularity', 'artist_popularity', 'track_group_size']"))
+        features = ast.literal_eval(os.getenv('RANKING_FEATURES', "['als_score', 'popularity_score', 'genre_popularity', 'artist_popularity', 'track_group_size']"))
     if top_k is None:
         top_k = int(os.getenv('RANKING_TOP_K', 10))
     if sample_users is None:
@@ -652,8 +596,6 @@ def run_ranking_pipeline(
         iterations = int(os.getenv('RANKING_CATBOOST_ITERATIONS', 100))
     if negatives_multiplier is None:
         negatives_multiplier = int(os.getenv('RANKING_NEGATIVES_MULTIPLIER', 4))
-    if max_similar is None:
-        max_similar = int(os.getenv('RANKING_MAX_SIMILAR', 10))
     if seed is None:
         seed = int(os.getenv('SEED', 42))
     
@@ -661,7 +603,7 @@ def run_ranking_pipeline(
     
     np.random.seed(seed)
     
-    # Determine target users (only load user_id column to save memory)
+    # Determine target users (only load user_id column)
     logger.info('Determining target users')
     als_path = os.path.join(results_dir, 'personal_als.parquet')
     als_users = pl.read_parquet(als_path, columns=['user_id'])['user_id'].unique().to_list()
@@ -686,20 +628,13 @@ def run_ranking_pipeline(
     logger.info('Computing track features')
     track_features = compute_track_features(catalog, train_events)
     
-    # Filter train events to target users for candidate generation
-    train_events_filtered = train_events.filter(pl.col('user_id').is_in(target_users))
-    
     # Free up memory
     del train_events
     gc.collect()
     
     # Load and merge candidates
     logger.info('Loading candidates')
-    candidates = load_and_merge_candidates(results_dir, train_events_filtered, target_users, max_similar)
-    
-    # Free up memory
-    del train_events_filtered
-    gc.collect()
+    candidates = load_and_merge_candidates(results_dir, target_users)
     
     # Add track features to candidates
     logger.info('Adding track features to candidates')
@@ -876,12 +811,18 @@ def generate_ranked_recommendations(
     del track_features
     gc.collect()
     
-    # Add similar_score as 0.0 (not used in evaluation)
-    candidates = candidates.with_columns(pl.lit(0.0).alias('similar_score'))
-    
     # Get features used by model
     features = model.feature_names_
-    
+    #
+    # Check if model expects features that don't exist in candidates (e.g., old model with similar_score)
+    available_features = set(candidates.columns)
+    missing_features = [f for f in features if f not in available_features]
+    if missing_features:
+        logger.warning(f'Model expects features not in candidates: {missing_features}. Adding as 0.0')
+        logger.warning('Consider re-training the model with: python -m src.rec_ranking')
+        for feat in missing_features:
+            candidates = candidates.with_columns(pl.lit(0.0).alias(feat))
+    #
     # Predict and rank
     logger.info('Predicting scores')
     predictions = model.predict_proba(candidates.select(features).to_pandas())[:, 1]
@@ -924,8 +865,7 @@ if __name__ == '__main__':
         'RANKING_NEGATIVES_MULTIPLIER', 
         'RANKING_SAMPLE_USERS',
         'RANKING_TOP_K', 
-        'RANKING_CATBOOST_ITERATIONS', 
-        'RANKING_MAX_SIMILAR'
+        'RANKING_CATBOOST_ITERATIONS'
     ]
     missing_vars = [var for var in required_env_vars if os.getenv(var) is None]
     if missing_vars:
@@ -941,7 +881,6 @@ if __name__ == '__main__':
     sample_users = args.sample_users or int(os.getenv('RANKING_SAMPLE_USERS'))
     iterations = args.iterations or int(os.getenv('RANKING_CATBOOST_ITERATIONS'))
     negatives_multiplier = args.negatives_multiplier or int(os.getenv('RANKING_NEGATIVES_MULTIPLIER'))
-    max_similar = int(os.getenv('RANKING_MAX_SIMILAR'))
 
     run_ranking_pipeline(
         preprocessed_dir, 
@@ -952,7 +891,6 @@ if __name__ == '__main__':
         sample_users, 
         iterations, 
         negatives_multiplier, 
-        max_similar, 
         seed
     )
 

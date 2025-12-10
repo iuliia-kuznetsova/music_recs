@@ -224,7 +224,8 @@ def main():
     print('='*80)
     
     try:
-        evaluate_model()
+        seed = int(os.getenv('SEED', 42))
+        evaluate_model(seed=seed)
         logger.info('DONE: Models evaluation completed successfully')
     except Exception as e:
         logger.error(f'ERROR: Models evaluation failed: {e}')

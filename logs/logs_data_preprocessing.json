@@ -1,0 +1,23 @@
+{"timestamp": "2025-12-10 19:29:36,898", "module": "data_preprocessing", "level": "INFO", "message": "Logging to logs_data_preprocessing.json setup completed"}
+{"timestamp": "2025-12-10 19:29:54,531", "module": "data_preprocessing", "level": "INFO", "message": "Starting raw data preprocessing"}
+{"timestamp": "2025-12-10 19:29:54,532", "module": "data_preprocessing", "level": "INFO", "message": "Loading tracks and catalog raw data from data/raw"}
+{"timestamp": "2025-12-10 19:29:54,532", "module": "data_preprocessing", "level": "INFO", "message": "Creating output directory data/preprocessed"}
+{"timestamp": "2025-12-10 19:29:54,532", "module": "data_preprocessing", "level": "INFO", "message": "Exploding tracks"}
+{"timestamp": "2025-12-10 19:29:54,536", "module": "data_preprocessing", "level": "INFO", "message": "Building intermediate catalogs"}
+{"timestamp": "2025-12-10 19:29:54,537", "module": "data_preprocessing", "level": "INFO", "message": "Deduplicating intermediate catalogs"}
+{"timestamp": "2025-12-10 19:30:03,935", "module": "data_preprocessing", "level": "INFO", "message": "Creating mapping dicts"}
+{"timestamp": "2025-12-10 19:30:04,633", "module": "data_preprocessing", "level": "INFO", "message": "Building items dataframe"}
+{"timestamp": "2025-12-10 19:30:22,893", "module": "data_preprocessing", "level": "INFO", "message": "DONE: items.parquet created successfully"}
+{"timestamp": "2025-12-10 19:30:22,969", "module": "data_preprocessing", "level": "INFO", "message": "Building catalog"}
+{"timestamp": "2025-12-10 19:30:24,082", "module": "data_preprocessing", "level": "INFO", "message": "DONE: tracks_catalog_clean.parquet created successfully"}
+{"timestamp": "2025-12-10 19:30:24,117", "module": "data_preprocessing", "level": "INFO", "message": "Building events dataframe"}
+{"timestamp": "2025-12-10 19:30:24,117", "module": "data_preprocessing", "level": "INFO", "message": "Loading interactions from data/raw"}
+{"timestamp": "2025-12-10 19:30:25,879", "module": "data_preprocessing", "level": "INFO", "message": "Filtering interactions at 95th percentile: track_seq <= 1837.0"}
+{"timestamp": "2025-12-10 19:30:25,879", "module": "data_preprocessing", "level": "INFO", "message": "Loaded valid track ids from catalog"}
+{"timestamp": "2025-12-10 19:31:01,299", "module": "data_preprocessing", "level": "INFO", "message": "DONE: events.parquet created successfully"}
+{"timestamp": "2025-12-10 19:31:01,333", "module": "data_preprocessing", "level": "INFO", "message": "Creating label encoders"}
+{"timestamp": "2025-12-10 19:31:01,333", "module": "data_preprocessing", "level": "INFO", "message": "Loading events from data/preprocessed"}
+{"timestamp": "2025-12-10 19:31:06,498", "module": "data_preprocessing", "level": "INFO", "message": "Encoded 1,371,768 users and 804,867 tracks"}
+{"timestamp": "2025-12-10 19:31:06,645", "module": "data_preprocessing", "level": "INFO", "message": "Saved label encoders to ./models/label_encoders.pkl"}
+{"timestamp": "2025-12-10 19:31:06,775", "module": "data_preprocessing", "level": "INFO", "message": "Uploading data files to S3"}
+{"timestamp": "2025-12-10 19:31:16,060", "module": "data_preprocessing", "level": "INFO", "message": "DONE: Data preprocessing completed successfully"}

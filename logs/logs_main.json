@@ -1,0 +1,29 @@
+{"timestamp": "2025-12-10 19:29:37,330", "module": "main", "level": "INFO", "message": "Logging to logs_main.json setup completed"}
+{"timestamp": "2025-12-10 19:29:37,331", "module": "main", "level": "INFO", "message": "STEP 1: Loading environment variables"}
+{"timestamp": "2025-12-10 19:29:37,331", "module": "main", "level": "INFO", "message": "DONE: Loading environment variables completed successfully"}
+{"timestamp": "2025-12-10 19:29:37,331", "module": "main", "level": "INFO", "message": "INFO: Raw data directory: data/raw"}
+{"timestamp": "2025-12-10 19:29:37,331", "module": "main", "level": "INFO", "message": "INFO: Preprocessed data directory: data/preprocessed"}
+{"timestamp": "2025-12-10 19:29:37,331", "module": "main", "level": "INFO", "message": "STEP 2: Downloading raw data"}
+{"timestamp": "2025-12-10 19:29:54,531", "module": "main", "level": "INFO", "message": "DONE: Raw data download completed successfully"}
+{"timestamp": "2025-12-10 19:29:54,531", "module": "main", "level": "INFO", "message": "STEP 3: Preprocessing data"}
+{"timestamp": "2025-12-10 19:31:17,145", "module": "main", "level": "INFO", "message": "INFO: Items dataframe shape: (5574943, 9)"}
+{"timestamp": "2025-12-10 19:31:17,146", "module": "main", "level": "INFO", "message": "INFO: Tracks catalog dataframe shape: (804916, 6)"}
+{"timestamp": "2025-12-10 19:31:17,146", "module": "main", "level": "INFO", "message": "INFO: Events dataframe shape: (161723765, 4)"}
+{"timestamp": "2025-12-10 19:31:17,146", "module": "main", "level": "INFO", "message": "DONE: Data preprocessing completed successfully"}
+{"timestamp": "2025-12-10 19:31:17,146", "module": "main", "level": "INFO", "message": "STEP 4: Splitting data into train/test sets"}
+{"timestamp": "2025-12-10 19:33:39,601", "module": "main", "level": "INFO", "message": "INFO: Train events dataframe shape: (152046251, 4)"}
+{"timestamp": "2025-12-10 19:33:39,601", "module": "main", "level": "INFO", "message": "INFO: Test events dataframe shape: (9677514, 4)"}
+{"timestamp": "2025-12-10 19:33:39,601", "module": "main", "level": "INFO", "message": "INFO: Train matrix shape: (1371768, 804867)"}
+{"timestamp": "2025-12-10 19:33:39,601", "module": "main", "level": "INFO", "message": "INFO: Test matrix shape: (1371768, 804867)"}
+{"timestamp": "2025-12-10 19:33:39,602", "module": "main", "level": "INFO", "message": "DONE: Train/test split completed successfully"}
+{"timestamp": "2025-12-10 19:33:39,602", "module": "main", "level": "INFO", "message": "STEP 5: Finding popularity-based recommendations"}
+{"timestamp": "2025-12-10 19:33:45,068", "module": "main", "level": "INFO", "message": "DONE: Popularity-based recommendations completed successfully"}
+{"timestamp": "2025-12-10 19:33:45,068", "module": "main", "level": "INFO", "message": "STEP 6: Finding ALS recommendations"}
+{"timestamp": "2025-12-10 20:24:16,392", "module": "main", "level": "INFO", "message": "DONE: ALS recommendations completed successfully"}
+{"timestamp": "2025-12-10 20:24:16,392", "module": "main", "level": "INFO", "message": "STEP 7: Finding similarity-based recommendations"}
+{"timestamp": "2025-12-10 20:54:25,666", "module": "main", "level": "INFO", "message": "DONE: Similarity-based recommendations completed successfully"}
+{"timestamp": "2025-12-10 20:54:25,666", "module": "main", "level": "INFO", "message": "STEP 8: Ranking recommendations"}
+{"timestamp": "2025-12-10 20:54:42,914", "module": "main", "level": "INFO", "message": "DONE: Ranking recommendations completed successfully"}
+{"timestamp": "2025-12-10 20:54:42,914", "module": "main", "level": "INFO", "message": "STEP 9: Evaluating models"}
+{"timestamp": "2025-12-10 21:25:30,144", "module": "main", "level": "INFO", "message": "DONE: Models evaluation completed successfully"}
+{"timestamp": "2025-12-10 21:25:30,149", "module": "main", "level": "INFO", "message": "DONE: Recommendation system pipline completed successfully"}

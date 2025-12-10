@@ -1,0 +1,19 @@
+{"timestamp": "2025-12-10 19:29:36,905", "module": "train_test_split", "level": "INFO", "message": "Logging to logs_train_test_split.json setup completed"}
+{"timestamp": "2025-12-10 19:31:17,146", "module": "train_test_split", "level": "INFO", "message": "Using TRAIN_DATE_THRESHOLD from env: 2022-12-16"}
+{"timestamp": "2025-12-10 19:31:17,146", "module": "train_test_split", "level": "INFO", "message": "Loading events from data/preprocessed"}
+{"timestamp": "2025-12-10 19:31:17,146", "module": "train_test_split", "level": "INFO", "message": "Splitting events by date threshold"}
+{"timestamp": "2025-12-10 19:31:17,148", "module": "train_test_split", "level": "INFO", "message": "DONE: Train/test events split completed successfully"}
+{"timestamp": "2025-12-10 19:31:34,043", "module": "train_test_split", "level": "INFO", "message": "Train/test events split saved to data/preprocessed/train_events.parquet and data/preprocessed/test_events.parquet"}
+{"timestamp": "2025-12-10 19:31:38,702", "module": "train_test_split", "level": "INFO", "message": "Train/test split metadata saved to data/preprocessed/train_test_split_info.pkl"}
+{"timestamp": "2025-12-10 19:31:38,772", "module": "train_test_split", "level": "INFO", "message": "Loading label encoders from ./models"}
+{"timestamp": "2025-12-10 19:31:39,205", "module": "train_test_split", "level": "INFO", "message": "Loading events from data/preprocessed"}
+{"timestamp": "2025-12-10 19:31:40,076", "module": "train_test_split", "level": "INFO", "message": "Building train sparse matrix"}
+{"timestamp": "2025-12-10 19:32:47,540", "module": "train_test_split", "level": "INFO", "message": "Train sparse matrix created: (1371768, 804867) with 152,046,251 non-zero entries"}
+{"timestamp": "2025-12-10 19:32:47,540", "module": "train_test_split", "level": "INFO", "message": "Train sparsity: 99.9862%"}
+{"timestamp": "2025-12-10 19:33:24,497", "module": "train_test_split", "level": "INFO", "message": "Train sparse matrix saved to data/preprocessed/train_matrix.npz"}
+{"timestamp": "2025-12-10 19:33:24,497", "module": "train_test_split", "level": "INFO", "message": "Building test sparse matrix"}
+{"timestamp": "2025-12-10 19:33:29,201", "module": "train_test_split", "level": "INFO", "message": "Test sparse matrix created: (1371768, 804867) with 9,677,514 non-zero entries"}
+{"timestamp": "2025-12-10 19:33:29,201", "module": "train_test_split", "level": "INFO", "message": "Test sparsity: 99.9991%"}
+{"timestamp": "2025-12-10 19:33:32,194", "module": "train_test_split", "level": "INFO", "message": "Test sparse matrix saved to data/preprocessed/test_matrix.npz"}
+{"timestamp": "2025-12-10 19:33:32,194", "module": "train_test_split", "level": "INFO", "message": "DONE: Train and test sparse matrix creation completed successfully"}
+{"timestamp": "2025-12-10 19:33:32,325", "module": "train_test_split", "level": "INFO", "message": "DONE: Train/test split completed successfully"}

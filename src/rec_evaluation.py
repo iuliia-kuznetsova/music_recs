@@ -928,3 +928,6 @@ if __name__ == '__main__':
     
     gc.collect()
     logger.info('DONE: Recommendation models evaluation completed successfully')
+
+    # ---------- All exports ---------- #
+__all__ = ['evaluate_model']

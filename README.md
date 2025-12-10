@@ -167,15 +167,21 @@ Run full pipeline
 python3 -m src.main
 ```
 or
-Skip data download (if raw data already exists)
+
+skip data download (if raw data already exists)
 ```bash
 python3 -m src.main --skip-download
 ```
 
 3. Check Data Overview, EDA or Results
-Look at 
+Take a look at 
 notebooks/data_overview.ipynb
 notebooks/eda.ipynb
 notebooks/results.ipynb
 Manually choose kernel Python(.venv_recsys)
 Run all
+
+4. Check logs
+Take a look at 
+logs/logs_main.py # Main pipeline logs
+and separate scripts log files 

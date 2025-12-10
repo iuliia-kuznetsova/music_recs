@@ -1,14 +1,14 @@
 {
   "model_name": "als",
-  "evaluation_date": "2025-12-10T14:28:37.774829",
-  "total_users": 1371773,
-  "evaluated_users": 722318,
+  "evaluation_date": "2025-12-10T21:19:25.258059",
+  "total_users": 1371768,
+  "evaluated_users": 721597,
   "metrics": {
     "k=5": {
-      "precision@k": 0.012670873493392106,
-      "recall@k": 0.011664156746076659,
-      "ndcg@k": 0.015433235489527804,
-      "novelty@k": 1.929883900377394,
+      "precision@k": 0.012867847288722103,
+      "recall@k": 0.011875488026674104,
+      "ndcg@k": 0.015724858468168165,
+      "novelty@k": 1.9376425804723925,
       "diversity@k": 1.0
     }
   }

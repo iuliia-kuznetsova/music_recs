@@ -1,14 +1,14 @@
 {
   "model_name": "popularity",
-  "evaluation_date": "2025-12-10T14:05:54.317456",
-  "total_users": 1371773,
-  "evaluated_users": 722318,
+  "evaluation_date": "2025-12-10T20:58:16.557140",
+  "total_users": 1371768,
+  "evaluated_users": 721597,
   "metrics": {
     "k=5": {
-      "precision@k": 0.006420163972100931,
-      "recall@k": 0.0029034695598919684,
-      "ndcg@k": 0.0061476544867959376,
-      "novelty@k": 0.21414944374348424,
+      "precision@k": 0.006426578824468506,
+      "recall@k": 0.002919720772459391,
+      "ndcg@k": 0.0061566617471478435,
+      "novelty@k": 0.2141566676812896,
       "diversity@k": 1.0
     }
   }

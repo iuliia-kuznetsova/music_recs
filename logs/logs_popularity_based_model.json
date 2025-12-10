@@ -1,2 +1,14 @@
-{"timestamp": "2025-12-10 13:20:10,112", "module": "popularity_based_model", "level": "INFO", "message": "Logging to logs_popularity_based_model.json setup completed"}
-{"timestamp": "2025-12-10 14:01:55,088", "module": "popularity_based_model", "level": "INFO", "message": "Logging to logs_popularity_based_model.json setup completed"}
+{"timestamp": "2025-12-10 19:29:36,912", "module": "popularity_based_model", "level": "INFO", "message": "Logging to logs_popularity_based_model.json setup completed"}
+{"timestamp": "2025-12-10 19:33:39,602", "module": "popularity_based_model", "level": "INFO", "message": "Starting popularity-based model training and recommendations"}
+{"timestamp": "2025-12-10 19:33:39,602", "module": "popularity_based_model", "level": "INFO", "message": "Computing top 100 popularity recommendations"}
+{"timestamp": "2025-12-10 19:33:39,602", "module": "popularity_based_model", "level": "INFO", "message": "Loading events from data/preprocessed"}
+{"timestamp": "2025-12-10 19:33:39,602", "module": "popularity_based_model", "level": "INFO", "message": "Computing track popularity using method: listen_count"}
+{"timestamp": "2025-12-10 19:33:44,678", "module": "popularity_based_model", "level": "INFO", "message": "DONE: Computed popularity for 804,867 tracks"}
+{"timestamp": "2025-12-10 19:33:44,678", "module": "popularity_based_model", "level": "INFO", "message": "Top track score: 111062.00"}
+{"timestamp": "2025-12-10 19:33:44,714", "module": "popularity_based_model", "level": "INFO", "message": "Results of popularity-based recommendations saved to ./results/popularity_track_scores.parquet"}
+{"timestamp": "2025-12-10 19:33:44,747", "module": "popularity_based_model", "level": "INFO", "message": "Loading catalog from data/preprocessed"}
+{"timestamp": "2025-12-10 19:33:44,825", "module": "popularity_based_model", "level": "INFO", "message": "Added metadata to 100 tracks"}
+{"timestamp": "2025-12-10 19:33:44,826", "module": "popularity_based_model", "level": "INFO", "message": "DONE: Top tracks added successfully"}
+{"timestamp": "2025-12-10 19:33:44,826", "module": "popularity_based_model", "level": "INFO", "message": "Results of popularity-based recommendations saved to ./results/top_popular.parquet"}
+{"timestamp": "2025-12-10 19:33:44,985", "module": "popularity_based_model", "level": "INFO", "message": "Uploaded top_popular.parquet to S3"}
+{"timestamp": "2025-12-10 19:33:45,068", "module": "popularity_based_model", "level": "INFO", "message": "DONE: Popularity-based model training and recommendations completed successfully"}
