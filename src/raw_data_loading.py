@@ -56,7 +56,7 @@ def load_env_with_logging():
         logger.error(f'Failed to load environment variable {missing_var}')
         return False
 
-    logger.info('Environment variables loaded')
+    logger.info('DONE: Environment variables loaded successfully')
     return True
 
 # ---------- Dwnload datasets ---------- #
@@ -88,7 +88,7 @@ def download_file(url: str, save_path: str) -> bool:
     try:
         with open(save_path, 'wb') as f:
             f.write(response.content)
-        logger.info(f'Dataframe saved to {save_path}')
+        logger.info(f'DONE: Dataframe saved to {save_path}')
         return True
     except Exception as e:
         logger.error(f'Failed to save {save_path}: {e}')
@@ -128,7 +128,7 @@ def download_all_raw() -> bool:
         logger.error('Failed to download one or more raw datasets')
         return False
     else:
-        logger.info('All raw datasets downloaded successfully')
+        logger.info('DONE: All raw datasets downloaded successfully')
         return True
 
 # ---------- Main entry point ---------- #
@@ -139,6 +139,6 @@ if __name__ == '__main__':
     load_env_with_logging()
     download_all_raw()
 
-    logger.info('Raw data loading pipeline completed')
+    logger.info('DONE: Raw data loading completed successfully')
 
 __all__ = ['load_env_with_logging', 'download_file', 'download_all_raw']

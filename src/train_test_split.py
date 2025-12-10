@@ -66,16 +66,17 @@ def calculate_date_threshold(preprocessed_dir: str, train_ratio: float = None) -
     '''
     
     # Check if DATE_THRESHOLD is set in environment
-    date_threshold_str = os.getenv('DATE_THRESHOLD')
+    date_threshold_str = os.getenv('TRAIN_DATE_THRESHOLD')
     if date_threshold_str:
         try:
             # Parse date in DD.MM.YYYY format
             day, month, year = date_threshold_str.split('.')
             date_threshold = date(int(year), int(month), int(day))
-            logger.info('Using DATE_THRESHOLD from environment: %s', date_threshold)
+            logger.info('Using TRAIN_DATE_THRESHOLD from env: %s', date_threshold)
             return date_threshold
+
         except (ValueError, AttributeError) as e:
-            logger.warning(f'Invalid DATE_THRESHOLD format: {date_threshold_str}. Expected DD.MM.YYYY. Using quantile method.')
+            logger.warning(f'Invalid TRAIN_DATE_THRESHOLD format: {date_threshold_str}. Expected DD.MM.YYYY. Using quantile method.')
     
     # Fall back to quantile-based calculation
     if train_ratio is None:
@@ -135,7 +136,7 @@ def split_by_date_threshold(preprocessed_dir: str, date_threshold: date) -> Tupl
         events
         .filter(pl.col('last_listen').cast(pl.Date) > date_threshold)
     )
-    logger.info('Successfully done with train/test events split')
+    logger.info('DONE: Train/test events split completed successfully')
 
     # Save train/test events
     train_events.sink_parquet(f'{preprocessed_dir}/train_events.parquet')
@@ -255,7 +256,7 @@ def create_sparse_matrix(preprocessed_dir: str, models_dir: str) -> csr_matrix:
     save_npz(test_sparse_matrix_path, test_matrix)
     logger.info(f'Test sparse matrix saved to {test_sparse_matrix_path}')
 
-    logger.info('Successfully done with train and test sparse matrix creation')
+    logger.info('DONE: Train and test sparse matrix creation completed successfully')
 
     # Free up memory
     del (
@@ -271,7 +272,7 @@ def create_sparse_matrix(preprocessed_dir: str, models_dir: str) -> csr_matrix:
 
     return None
     
-# ---------- Main entry point ---------- #
+# ---------- Wrapper function for train/test split ---------- #
 def run_train_test_split(preprocessed_dir: str=None, models_dir: str=None):
     '''
         Run train/test split pipeline.
@@ -294,7 +295,7 @@ def run_train_test_split(preprocessed_dir: str=None, models_dir: str=None):
     split_by_date_threshold(preprocessed_dir, date_threshold)
     create_sparse_matrix(preprocessed_dir, models_dir)
 
-    logger.info('Successfully done with train/test split')
+    logger.info('DONE: Train/test split completed successfully')
     
     return None
 
@@ -333,7 +334,7 @@ if __name__ == '__main__':
         # Default: run full pipeline
         run_train_test_split(preprocessed_dir, models_dir)
 
-    logger.info('Train/test split pipeline completed')
+    logger.info('DONE: Train/test split completed successfully')
 
 # ---------- All exports ---------- #
 __all__ = ['run_train_test_split']

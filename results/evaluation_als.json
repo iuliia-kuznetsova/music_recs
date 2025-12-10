@@ -1,0 +1,15 @@
+{
+  "model_name": "als",
+  "evaluation_date": "2025-12-10T00:37:45.829312",
+  "total_users": 1371773,
+  "evaluated_users": 722318,
+  "metrics": {
+    "k=5": {
+      "precision@k": 0.012670873493392106,
+      "recall@k": 0.011664156746076659,
+      "ndcg@k": 0.015433235489527804,
+      "novelty@k": 1.929883900377394,
+      "diversity@k": 1.0
+    }
+  }
+}

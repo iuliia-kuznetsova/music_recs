@@ -1,0 +1,80 @@
+{"timestamp": "2025-12-09 22:38:54,725", "module": "als_model", "level": "INFO", "message": "Logging to als_model.json setup completed"}
+{"timestamp": "2025-12-09 22:43:35,543", "module": "als_model", "level": "INFO", "message": "Starting ALS model training and recommendations"}
+{"timestamp": "2025-12-09 22:43:35,543", "module": "als_model", "level": "INFO", "message": "Loading train matrix"}
+{"timestamp": "2025-12-09 22:43:41,676", "module": "als_model", "level": "INFO", "message": "Loading encoders"}
+{"timestamp": "2025-12-09 22:43:42,128", "module": "als_model", "level": "INFO", "message": "Fitting ALS model"}
+{"timestamp": "2025-12-09 22:43:42,141", "module": "als_model", "level": "INFO", "message": "Fitting ALS model: (1371773, 804642), 152,164,712 interaction events"}
+{"timestamp": "2025-12-09 22:43:42,141", "module": "als_model", "level": "INFO", "message": "Fitting params: factors=64, reg=0.01, iter=15"}
+{"timestamp": "2025-12-09 22:52:11,323", "module": "als_model", "level": "INFO", "message": "DONE: ALS model training completed successfully"}
+{"timestamp": "2025-12-09 22:52:11,343", "module": "als_model", "level": "INFO", "message": "Generating personal recommendations (n=10, batch_size=50,000)"}
+{"timestamp": "2025-12-09 22:52:11,422", "module": "als_model", "level": "INFO", "message": "Generating top 10 recommendations for 1,371,773 users"}
+{"timestamp": "2025-12-09 22:52:11,422", "module": "als_model", "level": "INFO", "message": "Processing in 28 batches of 50,000 users each"}
+{"timestamp": "2025-12-09 22:52:11,422", "module": "als_model", "level": "INFO", "message": "Processing batch 1/28 (users 0-50,000, 0.0%)"}
+{"timestamp": "2025-12-09 22:53:47,801", "module": "als_model", "level": "INFO", "message": "Batch 1/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 22:53:47,842", "module": "als_model", "level": "INFO", "message": "Processing batch 2/28 (users 50,000-100,000, 3.6%)"}
+{"timestamp": "2025-12-09 22:55:23,952", "module": "als_model", "level": "INFO", "message": "Batch 2/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 22:55:23,990", "module": "als_model", "level": "INFO", "message": "Processing batch 3/28 (users 100,000-150,000, 7.3%)"}
+{"timestamp": "2025-12-09 22:57:00,282", "module": "als_model", "level": "INFO", "message": "Batch 3/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 22:57:00,325", "module": "als_model", "level": "INFO", "message": "Processing batch 4/28 (users 150,000-200,000, 10.9%)"}
+{"timestamp": "2025-12-09 22:58:37,763", "module": "als_model", "level": "INFO", "message": "Batch 4/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 22:58:37,801", "module": "als_model", "level": "INFO", "message": "Processing batch 5/28 (users 200,000-250,000, 14.6%)"}
+{"timestamp": "2025-12-09 23:00:14,126", "module": "als_model", "level": "INFO", "message": "Batch 5/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:00:14,166", "module": "als_model", "level": "INFO", "message": "Processing batch 6/28 (users 250,000-300,000, 18.2%)"}
+{"timestamp": "2025-12-09 23:01:50,786", "module": "als_model", "level": "INFO", "message": "Batch 6/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:01:50,826", "module": "als_model", "level": "INFO", "message": "Processing batch 7/28 (users 300,000-350,000, 21.9%)"}
+{"timestamp": "2025-12-09 23:03:28,154", "module": "als_model", "level": "INFO", "message": "Batch 7/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:03:28,191", "module": "als_model", "level": "INFO", "message": "Processing batch 8/28 (users 350,000-400,000, 25.5%)"}
+{"timestamp": "2025-12-09 23:05:05,396", "module": "als_model", "level": "INFO", "message": "Batch 8/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:05:05,435", "module": "als_model", "level": "INFO", "message": "Processing batch 9/28 (users 400,000-450,000, 29.2%)"}
+{"timestamp": "2025-12-09 23:06:42,425", "module": "als_model", "level": "INFO", "message": "Batch 9/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:06:42,461", "module": "als_model", "level": "INFO", "message": "Processing batch 10/28 (users 450,000-500,000, 32.8%)"}
+{"timestamp": "2025-12-09 23:08:19,219", "module": "als_model", "level": "INFO", "message": "Batch 10/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:08:19,254", "module": "als_model", "level": "INFO", "message": "Processing batch 11/28 (users 500,000-550,000, 36.4%)"}
+{"timestamp": "2025-12-09 23:09:55,358", "module": "als_model", "level": "INFO", "message": "Batch 11/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:09:55,395", "module": "als_model", "level": "INFO", "message": "Processing batch 12/28 (users 550,000-600,000, 40.1%)"}
+{"timestamp": "2025-12-09 23:11:31,917", "module": "als_model", "level": "INFO", "message": "Batch 12/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:11:31,958", "module": "als_model", "level": "INFO", "message": "Processing batch 13/28 (users 600,000-650,000, 43.7%)"}
+{"timestamp": "2025-12-09 23:13:08,161", "module": "als_model", "level": "INFO", "message": "Batch 13/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:13:08,200", "module": "als_model", "level": "INFO", "message": "Processing batch 14/28 (users 650,000-700,000, 47.4%)"}
+{"timestamp": "2025-12-09 23:14:44,878", "module": "als_model", "level": "INFO", "message": "Batch 14/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:14:44,918", "module": "als_model", "level": "INFO", "message": "Processing batch 15/28 (users 700,000-750,000, 51.0%)"}
+{"timestamp": "2025-12-09 23:16:21,313", "module": "als_model", "level": "INFO", "message": "Batch 15/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:16:21,353", "module": "als_model", "level": "INFO", "message": "Processing batch 16/28 (users 750,000-800,000, 54.7%)"}
+{"timestamp": "2025-12-09 23:17:58,749", "module": "als_model", "level": "INFO", "message": "Batch 16/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:17:58,784", "module": "als_model", "level": "INFO", "message": "Processing batch 17/28 (users 800,000-850,000, 58.3%)"}
+{"timestamp": "2025-12-09 23:19:35,226", "module": "als_model", "level": "INFO", "message": "Batch 17/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:19:35,267", "module": "als_model", "level": "INFO", "message": "Processing batch 18/28 (users 850,000-900,000, 62.0%)"}
+{"timestamp": "2025-12-09 23:21:11,417", "module": "als_model", "level": "INFO", "message": "Batch 18/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:21:11,454", "module": "als_model", "level": "INFO", "message": "Processing batch 19/28 (users 900,000-950,000, 65.6%)"}
+{"timestamp": "2025-12-09 23:22:48,394", "module": "als_model", "level": "INFO", "message": "Batch 19/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:22:48,431", "module": "als_model", "level": "INFO", "message": "Processing batch 20/28 (users 950,000-1,000,000, 69.3%)"}
+{"timestamp": "2025-12-09 23:24:24,566", "module": "als_model", "level": "INFO", "message": "Batch 20/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:24:24,603", "module": "als_model", "level": "INFO", "message": "Processing batch 21/28 (users 1,000,000-1,050,000, 72.9%)"}
+{"timestamp": "2025-12-09 23:26:00,922", "module": "als_model", "level": "INFO", "message": "Batch 21/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:26:00,960", "module": "als_model", "level": "INFO", "message": "Processing batch 22/28 (users 1,050,000-1,100,000, 76.5%)"}
+{"timestamp": "2025-12-09 23:27:36,370", "module": "als_model", "level": "INFO", "message": "Batch 22/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:27:36,407", "module": "als_model", "level": "INFO", "message": "Processing batch 23/28 (users 1,100,000-1,150,000, 80.2%)"}
+{"timestamp": "2025-12-09 23:29:12,402", "module": "als_model", "level": "INFO", "message": "Batch 23/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:29:12,439", "module": "als_model", "level": "INFO", "message": "Processing batch 24/28 (users 1,150,000-1,200,000, 83.8%)"}
+{"timestamp": "2025-12-09 23:30:48,114", "module": "als_model", "level": "INFO", "message": "Batch 24/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:30:48,155", "module": "als_model", "level": "INFO", "message": "Processing batch 25/28 (users 1,200,000-1,250,000, 87.5%)"}
+{"timestamp": "2025-12-09 23:32:24,696", "module": "als_model", "level": "INFO", "message": "Batch 25/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:32:24,735", "module": "als_model", "level": "INFO", "message": "Processing batch 26/28 (users 1,250,000-1,300,000, 91.1%)"}
+{"timestamp": "2025-12-09 23:34:01,475", "module": "als_model", "level": "INFO", "message": "Batch 26/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:34:01,512", "module": "als_model", "level": "INFO", "message": "Processing batch 27/28 (users 1,300,000-1,350,000, 94.8%)"}
+{"timestamp": "2025-12-09 23:35:37,769", "module": "als_model", "level": "INFO", "message": "Batch 27/28 complete: 500,000 recommendations saved"}
+{"timestamp": "2025-12-09 23:35:37,807", "module": "als_model", "level": "INFO", "message": "Processing batch 28/28 (users 1,350,000-1,371,773, 98.4%)"}
+{"timestamp": "2025-12-09 23:36:20,645", "module": "als_model", "level": "INFO", "message": "Batch 28/28 complete: 217,730 recommendations saved"}
+{"timestamp": "2025-12-09 23:36:20,681", "module": "als_model", "level": "INFO", "message": "Merging 28 batch checkpoints into final output"}
+{"timestamp": "2025-12-09 23:36:20,899", "module": "als_model", "level": "INFO", "message": "Generated 13,717,730 total recommendations"}
+{"timestamp": "2025-12-09 23:36:21,693", "module": "als_model", "level": "INFO", "message": "Saved final recommendations to ./results/personal_als.parquet"}
+{"timestamp": "2025-12-09 23:36:23,688", "module": "als_model", "level": "INFO", "message": "Uploaded personal_als.parquet to S3"}
+{"timestamp": "2025-12-09 23:36:23,699", "module": "als_model", "level": "INFO", "message": "Cleaned up checkpoint directory"}
+{"timestamp": "2025-12-09 23:36:23,758", "module": "als_model", "level": "INFO", "message": "Saving ALS model"}
+{"timestamp": "2025-12-09 23:36:23,758", "module": "als_model", "level": "INFO", "message": "Saving ALS model to ./models/als_model.pkl"}
+{"timestamp": "2025-12-09 23:36:32,522", "module": "als_model", "level": "INFO", "message": "Model saved to ./models/als_model.pkl"}
+{"timestamp": "2025-12-09 23:36:32,660", "module": "als_model", "level": "INFO", "message": "DONE: ALS model training and recommendations completed successfully"}
+{"timestamp": "2025-12-09 23:36:32,660", "module": "als_model", "level": "INFO", "message": "Loading ALS model from ./models/als_model.pkl"}
+{"timestamp": "2025-12-09 23:36:33,395", "module": "als_model", "level": "INFO", "message": "Model loaded from ./models/als_model.pkl"}
+{"timestamp": "2025-12-10 00:15:17,676", "module": "als_model", "level": "INFO", "message": "Loading ALS model from ./models/als_model.pkl"}
+{"timestamp": "2025-12-10 00:15:18,183", "module": "als_model", "level": "INFO", "message": "Model loaded from ./models/als_model.pkl"}

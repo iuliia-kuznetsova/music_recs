@@ -11,11 +11,11 @@
     5. Predict and extract top-K recommendations
 
     Usage examples:
-    python -m src.rec_ranking # run full pipeline
-    python -m src.rec_ranking --sample_users 10000 # number of users to sample (default: None)
-    python -m src.rec_ranking --top_k 10 # number of recommendations per user (default: 10)
-    python -m src.rec_ranking --iterations 100 # number of iterations for CatBoost (default: 100)
-    python -m src.rec_ranking --negatives_multiplier 4 # number of negative samples per user (default: 4)
+    python3 -m src.rec_ranking # run full pipeline
+    python3 -m src.rec_ranking --sample_users 10000 # number of users to sample (default: None)
+    python3 -m src.rec_ranking --top_k 10 # number of recommendations per user (default: 10)
+    python3 -m src.rec_ranking --iterations 100 # number of iterations for CatBoost (default: 100)
+    python3 -m src.rec_ranking --negatives_multiplier 4 # number of negative samples per user (default: 4)
 '''
 
 # ---------- Imports ---------- #
@@ -772,12 +772,14 @@ def run_ranking_pipeline(
 
     # Upload recommendations to S3
     upload_recommendations_to_s3(output_path, 'recommendations.parquet')    
-    logger.info(f'Uploaded {final_recs.height:,} recommendations to S3')
+    logger.info('Uploaded recommendations.parquet to S3')
 
     # Free up memory
-    del final_recs
+    del model, final_recs
     gc.collect()
     
+    logger.info('DONE: Recommendation ranking completed successfully')
+
     return None
 
 # ---------- Generate ranked recommendations ---------- #
@@ -908,7 +910,7 @@ if __name__ == '__main__':
     parser.add_argument('--negatives_multiplier', type=int, default=None)
     args = parser.parse_args()
     
-    logger.info('Running recommendation ranking pipeline')
+    logger.info('Running recommendation ranking')
 
     # Check required environment variables
     required_env_vars = [
@@ -952,5 +954,5 @@ if __name__ == '__main__':
         seed
     )
 
-    logger.info('Recommendation ranking pipeline completed')
+    logger.info('DONE: Recommendation ranking completed successfully')
     

@@ -22,7 +22,7 @@ from src.logging_set_up import setup_logging
 from src.raw_data_loading import load_env_with_logging, download_all_raw
 from src.data_preprocessing import run_preprocessing
 from src.train_test_split import run_train_test_split
-from src.popularity_based_model import generate_popularity_recommendations
+from src.popularity_based_model import popularity_based_recommendations
 from src.als_model import als_recommendations
 from src.similarity_based_model import similarity_based_recommendations
 from src.rec_ranking import run_ranking_pipeline
@@ -39,9 +39,8 @@ def main():
         2. Download raw data (if needed)
         3. Preprocess data
         4. Split data into train/test sets
-        5. Train models: popularity based, als, ranking CatBoost
-        6. Evaluate models
-        7. Generate final recommendations
+        5-8. Train models: popularity based, als, similarity based, ranking CatBoost
+        9. Evaluate models: popularity based, als, ranking CatBoost
     '''
 
     # Parse command-line arguments
@@ -59,7 +58,7 @@ def main():
     raw_dir = os.getenv('RAW_DATA_DIR', './data/raw')
     preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', './data/preprocessed')
 
-    logger.info('DONE: loading environment variables completed')
+    logger.info('DONE: Loading environment variables completed successfully')
     logger.info(f'INFO: Raw data directory: {raw_dir}')
     logger.info(f'INFO: Preprocessed data directory: {preprocessed_dir}')
     
@@ -71,7 +70,7 @@ def main():
         
         try:
             download_all_raw()
-            logger.info('DONE: Raw data download completed')
+            logger.info('DONE: Raw data download completed successfully')
         except Exception as e:
             logger.error(f'ERROR: Failed to download raw data: {e}')
             sys.exit(1)
@@ -89,24 +88,21 @@ def main():
             logger.info(f'INFO: Run without --skip-download to download raw data')
             sys.exit(1)
         
-        logger.info('DONE: Raw data download completed')
+        logger.info('DONE: Raw data download completed successfully')
         logger.info(f'INFO: All raw files present in {raw_dir}')
     
     # ---------- Step 3: Run preprocessing pipeline ---------- #
     print('\n' + '='*80)
-    print('STEP 3: Preprocessing data')
+    logger.info('STEP 3: Preprocessing data')
     print('='*80)
     
     try:
         run_preprocessing()
         
-        print('\n' + '='*80)
-        logger.info('DONE: Preprocessing pipeline completed successfully')
-        print('='*80)
-
         # Verify that the required preprocessed data files exist
         preprocessed_files = [
-            'items.parquet', 'tracks_catalog_clean.parquet', 
+            'items.parquet', 
+            'tracks_catalog_clean.parquet', 
             'events.parquet'
         ]
         missing_prerprocessed_files = [f for f in preprocessed_files 
@@ -127,10 +123,10 @@ def main():
         catalog_shape = pl.read_parquet(f'{preprocessed_dir}/tracks_catalog_clean.parquet').shape
         events_shape = pl.read_parquet(f'{preprocessed_dir}/events.parquet').shape
 
-        logger.info(f'INFO: Items dataframe shape:          {items_shape}')
+        logger.info(f'INFO: Items dataframe shape: {items_shape}')
         logger.info(f'INFO: Tracks catalog dataframe shape: {catalog_shape}')
-        logger.info(f'INFO: Events dataframe shape:         {events_shape}')
-        print('='*80 + '\n')
+        logger.info(f'INFO: Events dataframe shape: {events_shape}')
+        logger.info('DONE: Data preprocessing completed successfully')
         
     except Exception as e:
         logger.error(f'ERROR: Preprocessing failed: {e}')
@@ -168,6 +164,7 @@ def main():
     logger.info(f'INFO: Test events dataframe shape: {test_events_shape}')
     logger.info(f'INFO: Train matrix shape: {train_matrix_shape}')
     logger.info(f'INFO: Test matrix shape: {test_matrix_shape}')
+    logger.info('DONE: Train/test split completed successfully')
 
     # ---------- Step 5: Find popularity_based recommendations ---------- #     
     print('\n' + '='*80)
@@ -175,7 +172,8 @@ def main():
     print('='*80)
     
     try:
-        generate_popularity_recommendations()
+        popularity_based_recommendations()
+        logger.info('DONE: Popularity-based recommendations completed successfully')
     except Exception as e:
         logger.error(f'ERROR: Finding popular tracks failed: {e}')
         traceback.print_exc()
@@ -188,8 +186,7 @@ def main():
     
     try:
         als_recommendations()
-        # Free memory after ALS training
-        gc.collect()
+        logger.info('DONE: ALS recommendations completed successfully')
     except Exception as e:
         logger.error(f'ERROR: Finding ALS recommendations failed: {e}')
         traceback.print_exc()
@@ -202,8 +199,7 @@ def main():
     
     try:
         similarity_based_recommendations()
-        # Free memory after similar tracks computation
-        gc.collect()
+        logger.info('DONE: Similarity-based recommendations completed successfully')
     except Exception as e:
         logger.error(f'ERROR: Generating similarity-based recommendations failed: {e}')
         traceback.print_exc()
@@ -216,7 +212,7 @@ def main():
     
     try:
         run_ranking_pipeline()
-        gc.collect()
+        logger.info('DONE: Ranking recommendations completed successfully')
     except Exception as e:
         logger.error(f'ERROR: Ranking recommendations failed: {e}')
         traceback.print_exc()
@@ -229,14 +225,14 @@ def main():
     
     try:
         evaluate_model()
-        gc.collect()
+        logger.info('DONE: Models evaluation completed successfully')
     except Exception as e:
         logger.error(f'ERROR: Models evaluation failed: {e}')
         traceback.print_exc()
         sys.exit(1)
 
     print('\n' + '='*80)
-    logger.info('DONE: Recommendation system completed successfully')
+    logger.info('DONE: Recommendation system pipline completed successfully')
     print('='*80)
 
 if __name__ == '__main__':

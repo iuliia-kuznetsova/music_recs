@@ -1,0 +1,9 @@
+{"timestamp": "2025-12-09 22:38:54,631", "module": "raw_data_loading", "level": "INFO", "message": "Logging to raw_data_loading.json setup completed"}
+{"timestamp": "2025-12-09 22:38:55,205", "module": "raw_data_loading", "level": "INFO", "message": "Downloading all raw datasets"}
+{"timestamp": "2025-12-09 22:38:55,205", "module": "raw_data_loading", "level": "INFO", "message": "Downloading: https://storage.yandexcloud.net/mle-data/ym/tracks.parquet"}
+{"timestamp": "2025-12-09 22:38:55,618", "module": "raw_data_loading", "level": "INFO", "message": "DONE: Dataframe saved to data/raw/tracks.parquet"}
+{"timestamp": "2025-12-09 22:38:55,620", "module": "raw_data_loading", "level": "INFO", "message": "Downloading: https://storage.yandexcloud.net/mle-data/ym/catalog_names.parquet"}
+{"timestamp": "2025-12-09 22:38:56,216", "module": "raw_data_loading", "level": "INFO", "message": "DONE: Dataframe saved to data/raw/catalog_names.parquet"}
+{"timestamp": "2025-12-09 22:38:56,219", "module": "raw_data_loading", "level": "INFO", "message": "Downloading: https://storage.yandexcloud.net/mle-data/ym/interactions.parquet"}
+{"timestamp": "2025-12-09 22:39:27,748", "module": "raw_data_loading", "level": "INFO", "message": "DONE: Dataframe saved to data/raw/interactions.parquet"}
+{"timestamp": "2025-12-09 22:39:27,826", "module": "raw_data_loading", "level": "INFO", "message": "DONE: All raw datasets downloaded successfully"}

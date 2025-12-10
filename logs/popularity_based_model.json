@@ -1,0 +1,13 @@
+{"timestamp": "2025-12-09 22:38:54,704", "module": "popularity_based_model", "level": "INFO", "message": "Logging to popularity_based_model.json setup completed"}
+{"timestamp": "2025-12-09 22:43:29,517", "module": "popularity_based_model", "level": "INFO", "message": "Starting popularity-based model training and recommendations"}
+{"timestamp": "2025-12-09 22:43:29,517", "module": "popularity_based_model", "level": "INFO", "message": "Computing top 100 popularity recommendations"}
+{"timestamp": "2025-12-09 22:43:29,517", "module": "popularity_based_model", "level": "INFO", "message": "Loading events from data/preprocessed"}
+{"timestamp": "2025-12-09 22:43:29,517", "module": "popularity_based_model", "level": "INFO", "message": "Computing track popularity using method: listen_count"}
+{"timestamp": "2025-12-09 22:43:35,107", "module": "popularity_based_model", "level": "INFO", "message": "DONE: Computed popularity for 804,642 tracks"}
+{"timestamp": "2025-12-09 22:43:35,107", "module": "popularity_based_model", "level": "INFO", "message": "Top track score: 111062.00"}
+{"timestamp": "2025-12-09 22:43:35,138", "module": "popularity_based_model", "level": "INFO", "message": "Results of popularity-based recommendations saved to ./results/popularity_track_scores.parquet"}
+{"timestamp": "2025-12-09 22:43:35,184", "module": "popularity_based_model", "level": "INFO", "message": "Loading catalog from data/preprocessed"}
+{"timestamp": "2025-12-09 22:43:35,267", "module": "popularity_based_model", "level": "INFO", "message": "Added metadata to 100 tracks"}
+{"timestamp": "2025-12-09 22:43:35,268", "module": "popularity_based_model", "level": "INFO", "message": "Results of popularity-based recommendations saved to ./results/top_popular.parquet"}
+{"timestamp": "2025-12-09 22:43:35,443", "module": "popularity_based_model", "level": "INFO", "message": "Uploaded top_popular.parquet to S3"}
+{"timestamp": "2025-12-09 22:43:35,543", "module": "popularity_based_model", "level": "INFO", "message": "DONE: Popularity-based model training and recommendations completed successfully"}

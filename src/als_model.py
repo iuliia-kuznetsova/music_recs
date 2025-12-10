@@ -13,9 +13,9 @@
     - personal_als.parquet - Personal recommendations for all users
 
     Usage:
-    python -m src.als_model --train # train ALS model
-    python -m src.als_model --recommend # generate recommendations for all users
-    python -m src.als_model --user-id 12345 # generate recommendations for a specific user
+    python3 -m src.als_model --train # train ALS model
+    python3 -m src.als_model --recommend # generate recommendations for all users
+    python3 -m src.als_model --user-id 12345 # generate recommendations for a specific user
 '''
 
 # ---------- Imports ---------- #
@@ -96,13 +96,13 @@ class ALSRecommender:
 
             Args:
             - train_matrix - sparse user-track interaction matrix for training
-            - user_encoder - user ID to index mapping
-            - track_encoder - track ID to index mapping
+            - user_encoder - user id to index mapping
+            - track_encoder - track id to index mapping
 
             Returns:
             - None
         '''
-        logger.info(f'Training ALS model: {train_matrix.shape}, {train_matrix.nnz:,} interaction events')
+        logger.info(f'Fitting ALS model: {train_matrix.shape}, {train_matrix.nnz:,} interaction events')
         logger.info(f'Fitting params: factors={self.factors}, reg={self.regularization}, iter={self.iterations}')
         
         # Store encoders
@@ -119,7 +119,7 @@ class ALSRecommender:
         self.model.fit(train_confidence, show_progress=True)
         self.is_fitted = True
         
-        logger.info('Model training complete')
+        logger.info('DONE: ALS model training completed successfully')
         
     def recommend(
         self, 
@@ -175,7 +175,7 @@ class ALSRecommender:
             if idx in self.track_decoder
         ]
         
-        logger.info(f'Found {len(recommendations):,} recommendations for user {user_id}')
+        logger.info(f'DONE: Found {len(recommendations):,} recommendations for user {user_id}')
         
         return recommendations
     
@@ -183,15 +183,21 @@ class ALSRecommender:
         self, 
         train_matrix, 
         results_dir: str=None, 
-        n_recs: int=None) -> None:
+        n_recs: int=None,
+        batch_size: int=50000,
+        checkpoint_dir: str=None,
+        resume: bool=True) -> None:
         '''
             Generate recommendations for all users and save to parquet.
-            Uses batch processing for better performance.
+            Uses batch processing with checkpointing for resumability.
 
             Args:
             - train_matrix - sparse user-track interaction matrix for training
             - results_dir - path to results directory
             - n_recs - number of recommendations to return
+            - batch_size - number of users to process per batch (default 50,000)
+            - checkpoint_dir - directory to store batch checkpoints (default: results_dir/als_checkpoints)
+            - resume - whether to resume from existing checkpoints (default True)
 
             Returns:
             - None
@@ -202,8 +208,12 @@ class ALSRecommender:
             results_dir = os.getenv('RESULTS_DIR', './results')
         if n_recs is None:
             n_recs = int(os.getenv('ALS_N_RECS', 10))
+        if checkpoint_dir is None:
+            checkpoint_dir = os.path.join(results_dir, 'als_checkpoints')
 
         output_path = os.path.join(results_dir, 'personal_als.parquet')
+        os.makedirs(results_dir, exist_ok=True)
+        os.makedirs(checkpoint_dir, exist_ok=True)
         
         # Get all user indices as numpy array for batch processing
         all_user_indices = np.array(list(self.user_decoder.keys()))
@@ -213,61 +223,121 @@ class ALSRecommender:
         valid_mask = all_user_indices < n_model_users
         all_user_indices = all_user_indices[valid_mask]
         
-        logger.info(f'Generating top {n_recs} recommendations for {len(all_user_indices):,} users (batch mode)')
+        total_users = len(all_user_indices)
+        n_batches = (total_users + batch_size - 1) // batch_size
         
-        # Use batch recommend for much faster processing
-        track_indices_batch, scores_batch = self.model.recommend(
-            all_user_indices, 
-            train_matrix[all_user_indices], 
-            N=n_recs, 
-            filter_already_liked_items=True
-        )
+        logger.info(f'Generating top {n_recs} recommendations for {total_users:,} users')
+        logger.info(f'Processing in {n_batches} batches of {batch_size:,} users each')
         
-        logger.info('Building recommendations dataframe (vectorized)')
+        # Check for existing checkpoints if resuming
+        completed_batches = set()
+        if resume:
+            for fname in os.listdir(checkpoint_dir):
+                if fname.startswith('batch_') and fname.endswith('.parquet'):
+                    try:
+                        batch_num = int(fname.replace('batch_', '').replace('.parquet', ''))
+                        completed_batches.add(batch_num)
+                    except ValueError:
+                        pass
+            if completed_batches:
+                logger.info(f'Found {len(completed_batches)} completed batches, resuming from batch {max(completed_batches) + 1}')
         
-        n_users = len(all_user_indices)
-        n_recs_batch = track_indices_batch.shape[1]
+        # Process each batch
+        for batch_idx in range(n_batches):
+            batch_start = batch_idx * batch_size
+            batch_end = min((batch_idx + 1) * batch_size, total_users)
+            batch_user_indices = all_user_indices[batch_start:batch_end]
+            
+            checkpoint_path = os.path.join(checkpoint_dir, f'batch_{batch_idx}.parquet')
+            
+            # Skip if batch already completed
+            if resume and batch_idx in completed_batches:
+                logger.info(f'Skipping batch {batch_idx + 1}/{n_batches} (already completed)')
+                continue
+            
+            # Progress logging
+            progress_pct = (batch_start / total_users) * 100
+            logger.info(f'Processing batch {batch_idx + 1}/{n_batches} (users {batch_start:,}-{batch_end:,}, {progress_pct:.1f}%)')
+            
+            # Generate recommendations for this batch
+            track_indices_batch, scores_batch = self.model.recommend(
+                batch_user_indices, 
+                train_matrix[batch_user_indices], 
+                N=n_recs, 
+                filter_already_liked_items=True
+            )
+            
+            # Build dataframe for this batch
+            n_batch_users = len(batch_user_indices)
+            n_recs_actual = track_indices_batch.shape[1]
+            
+            user_ids = np.array([self.user_decoder[idx] for idx in batch_user_indices])
+            user_ids_repeated = np.repeat(user_ids, n_recs_actual)
+            
+            track_indices_flat = track_indices_batch.flatten()
+            scores_flat = scores_batch.flatten()
+            ranks = np.tile(np.arange(1, n_recs + 1), n_batch_users)
+            
+            track_decoder_arr = np.array([self.track_decoder.get(int(idx), -1) for idx in track_indices_flat])
+            
+            batch_df = pl.DataFrame({
+                'user_id': user_ids_repeated,
+                'track_id': track_decoder_arr,
+                'score': scores_flat.astype(np.float32),
+                'rank': ranks.astype(np.int8)
+            })
+            
+            # Filter out invalid track_ids
+            batch_df = batch_df.filter(pl.col('track_id') != -1)
+            
+            # Save batch checkpoint
+            batch_df.write_parquet(checkpoint_path)
+            
+            logger.info(f'Batch {batch_idx + 1}/{n_batches} complete: {batch_df.height:,} recommendations saved')
+            
+            # Free batch memory
+            del track_indices_batch, scores_batch, user_ids, user_ids_repeated
+            del track_indices_flat, scores_flat, ranks, track_decoder_arr, batch_df
+            gc.collect()
         
-        # Create user_id array (repeat each user_id n times)
-        user_ids = np.array([self.user_decoder[idx] for idx in all_user_indices])
-        user_ids_repeated = np.repeat(user_ids, n_recs_batch)
+        # Merge all batch checkpoints into final output
+        logger.info(f'Merging {n_batches} batch checkpoints into final output')
         
-        # Flatten track indices and scores
-        track_indices_flat = track_indices_batch.flatten()
-        scores_flat = scores_batch.flatten()
+        batch_dfs = []
+        for batch_idx in range(n_batches):
+            checkpoint_path = os.path.join(checkpoint_dir, f'batch_{batch_idx}.parquet')
+            if os.path.exists(checkpoint_path):
+                batch_dfs.append(pl.read_parquet(checkpoint_path))
         
-        # Create rank array (1, 2, ..., n repeated for each user)
-        ranks = np.tile(np.arange(1, n_recs + 1), n_users)
-        
-        # Decode track indices to track_ids using vectorized lookup
-        track_decoder_arr = np.array([self.track_decoder.get(int(idx), -1) for idx in track_indices_flat])
-        
-        # Create DataFrame directly from arrays
-        als_df = pl.DataFrame({
-            'user_id': user_ids_repeated,
-            'track_id': track_decoder_arr,
-            'score': scores_flat.astype(np.float32),
-            'rank': ranks.astype(np.int8)
-        })
-        
-        # Filter out invalid track_ids (where decoder returned -1)
-        als_df = als_df.filter(pl.col('track_id') != -1)
-        
-        logger.info(f'Generated {als_df.height:,} recommendations')
-        
-        # Save results
-        os.makedirs(results_dir, exist_ok=True)
-        als_df.write_parquet(output_path)
-        
-        logger.info(f'Saved {als_df.height:,} recommendations to {output_path}')
-
-        # Upload to S3
-        upload_recommendations_to_s3(output_path, 'personal_als.parquet')
-
-        # Free memory
-        del als_df, track_indices_batch, scores_batch, user_ids, user_ids_repeated
-        del track_indices_flat, scores_flat, ranks, track_decoder_arr
-        gc.collect()
+        if batch_dfs:
+            als_df = pl.concat(batch_dfs)
+            logger.info(f'Generated {als_df.height:,} total recommendations')
+            
+            # Save final results
+            als_df.write_parquet(output_path)
+            logger.info(f'Saved final recommendations to {output_path}')
+            
+            # Upload to S3
+            upload_recommendations_to_s3(output_path, 'personal_als.parquet')
+            logger.info('Uploaded personal_als.parquet to S3')
+            
+            # Clean up checkpoint files after successful merge
+            for batch_idx in range(n_batches):
+                checkpoint_path = os.path.join(checkpoint_dir, f'batch_{batch_idx}.parquet')
+                if os.path.exists(checkpoint_path):
+                    os.remove(checkpoint_path)
+            
+            # Remove checkpoint directory if empty
+            try:
+                os.rmdir(checkpoint_dir)
+                logger.info('Cleaned up checkpoint directory')
+            except OSError:
+                pass  # Directory not empty or other issue
+            
+            del als_df, batch_dfs
+            gc.collect()
+        else:
+            logger.error('No batch checkpoints found to merge')
 
         return None
     
@@ -357,7 +427,9 @@ def als_recommendations(
     iterations: int = None, 
     alpha: float = None, 
     num_threads: int = None, 
-    n_recs: int = None
+    n_recs: int = None,
+    batch_size: int = None,
+    resume: bool = True
 ) -> None:
     '''
         Generate ALS recommendations for all users.
@@ -370,6 +442,8 @@ def als_recommendations(
         - alpha - confidence scaling factor
         - num_threads - number of threads to use
         - n_recs - number of recommendations to generate
+        - batch_size - number of users per batch for recommendation generation
+        - resume - whether to resume from existing checkpoints
 
         Returns:
         - None
@@ -391,8 +465,10 @@ def als_recommendations(
         num_threads = int(os.getenv('ALS_NUM_THREADS', 0))
     if n_recs is None:
         n_recs = int(os.getenv('ALS_N_RECS', 10))
+    if batch_size is None:
+        batch_size = int(os.getenv('ALS_BATCH_SIZE', 50000))
    
-    logger.info('ALS model training')
+    logger.info('Starting ALS model training and recommendations')
 
     logger.info('Loading train matrix')
     train_path = f'{preprocessed_dir}/train_matrix.npz'
@@ -416,18 +492,22 @@ def als_recommendations(
         encoders['track_encoder']
     )
     
-    logger.info(f'Generating personal recommendations (n={n_recs})')
-    recommender.generate_als_recommendations(train_matrix, n_recs=n_recs)
+    logger.info(f'Generating personal recommendations (n={n_recs}, batch_size={batch_size:,})')
+    recommender.generate_als_recommendations(
+        train_matrix, 
+        n_recs=n_recs, 
+        batch_size=batch_size,
+        resume=resume
+    )
 
     logger.info('Saving ALS model')
-    model_path = os.path.join(models_dir, 'als_model.pkl')
-    recommender.save(model_path)
+    recommender.save(models_dir)
 
     # Free memory
     del train_matrix, encoders, recommender
     gc.collect()
 
-    logger.info('ALS model training complete')
+    logger.info('DONE: ALS model training and recommendations completed successfully')
 
     return None
 
@@ -439,6 +519,8 @@ if __name__ == '__main__':
     parser.add_argument('--recommend', action='store_true', help='Generate recommendations for all users')
     parser.add_argument('--user-id', type=int, help='Get recommendations for a specific user ID')
     parser.add_argument('--n-recs', type=int, default=10, help='Number of recommendations to return')
+    parser.add_argument('--batch-size', type=int, default=50000, help='Number of users per batch (default: 50000)')
+    parser.add_argument('--no-resume', action='store_true', help='Start fresh instead of resuming from checkpoints')
     args = parser.parse_args()
 
     logger.info('Running ALS model training pipeline')
@@ -454,7 +536,7 @@ if __name__ == '__main__':
         'ALS_ITERATIONS', 
         'ALS_ALPHA', 
         'ALS_NUM_THREADS', 
-        'ALS_N_REC'
+        'ALS_N_RECS'
     ]
 
     missing_vars = [var for var in required_env_vars if os.getenv(var) is None]
@@ -470,22 +552,19 @@ if __name__ == '__main__':
     iterations = int(os.getenv('ALS_ITERATIONS', 15))
     alpha = float(os.getenv('ALS_ALPHA', 1.0))
     num_threads = int(os.getenv('ALS_NUM_THREADS', 0))  # 0 = use all cores
-    n_recs = int(os.getenv('ALS_N_REC', 10))
-
-    model_path = os.path.join(models_dir, 'als_model.pkl')
-    recommender = load_als_model(model_path)
-    train_matrix = load_npz(f'{preprocessed_dir}/train_matrix.npz')
+    n_recs = int(os.getenv('ALS_N_RECS', 10))
 
     if args.train:
-        logger.info('Starting ALS model training pipeline')
-        als_recommendations()
+        logger.info('Starting ALS model training and recommendations')
+        als_recommendations(
+            batch_size=args.batch_size,
+            resume=not args.no_resume
+        )
     
     elif args.recommend or args.user_id:
         # Load model and data        
-        
-        if not os.path.exists(model_path):
-            logger.error(f'Model not found at {model_path}. Run with --train first.')
-            exit(1)       
+        recommender = load_als_model(models_dir)
+        train_matrix = load_npz(f'{preprocessed_dir}/train_matrix.npz')
         
         if args.user_id:
             # Get recommendations for a specific user
@@ -496,14 +575,19 @@ if __name__ == '__main__':
         else:
             # Generate recommendations for all users
             logger.info('Generating recommendations for all users')
-            recommender.generate_als_recommendations(train_matrix, n_recs=args.n_recs)
+            recommender.generate_als_recommendations(
+                train_matrix, 
+                n_recs=args.n_recs,
+                batch_size=args.batch_size,
+                resume=not args.no_resume
+            )
     
     else:
         logger.error('Invalid command. Use --train, --recommend, or --user-id <user_id>')
         parser.print_help()
         print('Invalid command. Use --train, --recommend, or --user-id <user_id>')
     
-    logger.info('ALS model training pipeline completed')
+    logger.info('DONE: ALS model training and recommendations completed successfully')
 
 # ---------- All exports ---------- #
 __all__ = ['ALSRecommender', 'load_als_model', 'als_recommendations']

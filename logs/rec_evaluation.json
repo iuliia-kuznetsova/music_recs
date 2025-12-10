@@ -1,0 +1,100 @@
+{"timestamp": "2025-12-09 22:38:55,203", "module": "rec_evaluation", "level": "INFO", "message": "Logging to rec_evaluation.json setup completed"}
+{"timestamp": "2025-12-10 00:08:18,818", "module": "rec_evaluation", "level": "INFO", "message": "Evaluating popularity model"}
+{"timestamp": "2025-12-10 00:08:27,352", "module": "rec_evaluation", "level": "INFO", "message": "Generating popular recommendations using method=listen_count"}
+{"timestamp": "2025-12-10 00:08:27,352", "module": "rec_evaluation", "level": "INFO", "message": "Loading popular tracks from ./results/top_popular.parquet"}
+{"timestamp": "2025-12-10 00:08:27,354", "module": "rec_evaluation", "level": "INFO", "message": "Loaded 100 popular tracks"}
+{"timestamp": "2025-12-10 00:11:03,823", "module": "rec_evaluation", "level": "INFO", "message": "Generating recommendations for 722,318 test users"}
+{"timestamp": "2025-12-10 00:11:06,538", "module": "rec_evaluation", "level": "INFO", "message": "Generated 10,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:09,250", "module": "rec_evaluation", "level": "INFO", "message": "Generated 20,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:11,956", "module": "rec_evaluation", "level": "INFO", "message": "Generated 30,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:14,627", "module": "rec_evaluation", "level": "INFO", "message": "Generated 40,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:17,334", "module": "rec_evaluation", "level": "INFO", "message": "Generated 50,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:20,007", "module": "rec_evaluation", "level": "INFO", "message": "Generated 60,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:22,722", "module": "rec_evaluation", "level": "INFO", "message": "Generated 70,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:25,455", "module": "rec_evaluation", "level": "INFO", "message": "Generated 80,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:28,142", "module": "rec_evaluation", "level": "INFO", "message": "Generated 90,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:30,868", "module": "rec_evaluation", "level": "INFO", "message": "Generated 100,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:33,563", "module": "rec_evaluation", "level": "INFO", "message": "Generated 110,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:36,275", "module": "rec_evaluation", "level": "INFO", "message": "Generated 120,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:38,979", "module": "rec_evaluation", "level": "INFO", "message": "Generated 130,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:48,046", "module": "rec_evaluation", "level": "INFO", "message": "Generated 140,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:50,723", "module": "rec_evaluation", "level": "INFO", "message": "Generated 150,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:53,408", "module": "rec_evaluation", "level": "INFO", "message": "Generated 160,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:56,111", "module": "rec_evaluation", "level": "INFO", "message": "Generated 170,000 / 722,318"}
+{"timestamp": "2025-12-10 00:11:58,808", "module": "rec_evaluation", "level": "INFO", "message": "Generated 180,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:01,523", "module": "rec_evaluation", "level": "INFO", "message": "Generated 190,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:04,215", "module": "rec_evaluation", "level": "INFO", "message": "Generated 200,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:06,924", "module": "rec_evaluation", "level": "INFO", "message": "Generated 210,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:09,713", "module": "rec_evaluation", "level": "INFO", "message": "Generated 220,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:12,445", "module": "rec_evaluation", "level": "INFO", "message": "Generated 230,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:15,151", "module": "rec_evaluation", "level": "INFO", "message": "Generated 240,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:17,833", "module": "rec_evaluation", "level": "INFO", "message": "Generated 250,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:20,522", "module": "rec_evaluation", "level": "INFO", "message": "Generated 260,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:23,226", "module": "rec_evaluation", "level": "INFO", "message": "Generated 270,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:25,933", "module": "rec_evaluation", "level": "INFO", "message": "Generated 280,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:28,600", "module": "rec_evaluation", "level": "INFO", "message": "Generated 290,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:31,304", "module": "rec_evaluation", "level": "INFO", "message": "Generated 300,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:33,992", "module": "rec_evaluation", "level": "INFO", "message": "Generated 310,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:36,702", "module": "rec_evaluation", "level": "INFO", "message": "Generated 320,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:39,394", "module": "rec_evaluation", "level": "INFO", "message": "Generated 330,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:42,122", "module": "rec_evaluation", "level": "INFO", "message": "Generated 340,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:44,836", "module": "rec_evaluation", "level": "INFO", "message": "Generated 350,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:47,530", "module": "rec_evaluation", "level": "INFO", "message": "Generated 360,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:50,248", "module": "rec_evaluation", "level": "INFO", "message": "Generated 370,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:52,955", "module": "rec_evaluation", "level": "INFO", "message": "Generated 380,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:55,693", "module": "rec_evaluation", "level": "INFO", "message": "Generated 390,000 / 722,318"}
+{"timestamp": "2025-12-10 00:12:58,386", "module": "rec_evaluation", "level": "INFO", "message": "Generated 400,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:01,126", "module": "rec_evaluation", "level": "INFO", "message": "Generated 410,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:03,834", "module": "rec_evaluation", "level": "INFO", "message": "Generated 420,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:06,535", "module": "rec_evaluation", "level": "INFO", "message": "Generated 430,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:09,231", "module": "rec_evaluation", "level": "INFO", "message": "Generated 440,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:11,921", "module": "rec_evaluation", "level": "INFO", "message": "Generated 450,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:14,609", "module": "rec_evaluation", "level": "INFO", "message": "Generated 460,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:17,292", "module": "rec_evaluation", "level": "INFO", "message": "Generated 470,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:19,958", "module": "rec_evaluation", "level": "INFO", "message": "Generated 480,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:22,703", "module": "rec_evaluation", "level": "INFO", "message": "Generated 490,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:25,388", "module": "rec_evaluation", "level": "INFO", "message": "Generated 500,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:28,089", "module": "rec_evaluation", "level": "INFO", "message": "Generated 510,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:30,927", "module": "rec_evaluation", "level": "INFO", "message": "Generated 520,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:33,634", "module": "rec_evaluation", "level": "INFO", "message": "Generated 530,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:36,357", "module": "rec_evaluation", "level": "INFO", "message": "Generated 540,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:45,446", "module": "rec_evaluation", "level": "INFO", "message": "Generated 550,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:48,136", "module": "rec_evaluation", "level": "INFO", "message": "Generated 560,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:50,820", "module": "rec_evaluation", "level": "INFO", "message": "Generated 570,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:53,530", "module": "rec_evaluation", "level": "INFO", "message": "Generated 580,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:56,202", "module": "rec_evaluation", "level": "INFO", "message": "Generated 590,000 / 722,318"}
+{"timestamp": "2025-12-10 00:13:58,890", "module": "rec_evaluation", "level": "INFO", "message": "Generated 600,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:01,580", "module": "rec_evaluation", "level": "INFO", "message": "Generated 610,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:04,290", "module": "rec_evaluation", "level": "INFO", "message": "Generated 620,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:07,007", "module": "rec_evaluation", "level": "INFO", "message": "Generated 630,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:09,692", "module": "rec_evaluation", "level": "INFO", "message": "Generated 640,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:12,393", "module": "rec_evaluation", "level": "INFO", "message": "Generated 650,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:15,070", "module": "rec_evaluation", "level": "INFO", "message": "Generated 660,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:17,773", "module": "rec_evaluation", "level": "INFO", "message": "Generated 670,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:20,462", "module": "rec_evaluation", "level": "INFO", "message": "Generated 680,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:23,155", "module": "rec_evaluation", "level": "INFO", "message": "Generated 690,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:25,879", "module": "rec_evaluation", "level": "INFO", "message": "Generated 700,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:28,580", "module": "rec_evaluation", "level": "INFO", "message": "Generated 710,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:31,273", "module": "rec_evaluation", "level": "INFO", "message": "Generated 720,000 / 722,318"}
+{"timestamp": "2025-12-10 00:14:38,410", "module": "rec_evaluation", "level": "INFO", "message": "Generated 722,318 recommendation lists"}
+{"timestamp": "2025-12-10 00:15:09,258", "module": "rec_evaluation", "level": "INFO", "message": "K=5: P=0.0064 R=0.0029 NDCG=0.0061"}
+{"timestamp": "2025-12-10 00:15:09,761", "module": "rec_evaluation", "level": "INFO", "message": "DONE: Saved evaluation_popularity.json to ./results"}
+{"timestamp": "2025-12-10 00:15:09,762", "module": "rec_evaluation", "level": "INFO", "message": "Evaluating als model"}
+{"timestamp": "2025-12-10 00:15:17,676", "module": "rec_evaluation", "level": "INFO", "message": "Generating ALS recommendations from ./models"}
+{"timestamp": "2025-12-10 00:15:18,365", "module": "rec_evaluation", "level": "INFO", "message": "Generating for 722,318 test users"}
+{"timestamp": "2025-12-10 00:15:18,516", "module": "rec_evaluation", "level": "INFO", "message": "Valid users for batch recommendation: 722,318"}
+{"timestamp": "2025-12-10 00:15:18,558", "module": "rec_evaluation", "level": "INFO", "message": "Running batch recommendation with ALS model"}
+{"timestamp": "2025-12-10 00:37:27,531", "module": "rec_evaluation", "level": "INFO", "message": "Batch recommendation complete"}
+{"timestamp": "2025-12-10 00:37:31,524", "module": "rec_evaluation", "level": "INFO", "message": "Generated 722,318 recommendation lists"}
+{"timestamp": "2025-12-10 00:37:58,078", "module": "rec_evaluation", "level": "INFO", "message": "K=5: P=0.0127 R=0.0117 NDCG=0.0154"}
+{"timestamp": "2025-12-10 00:37:58,524", "module": "rec_evaluation", "level": "INFO", "message": "DONE: Saved evaluation_als.json to ./results"}
+{"timestamp": "2025-12-10 00:37:58,525", "module": "rec_evaluation", "level": "INFO", "message": "Evaluating ranked model"}
+{"timestamp": "2025-12-10 00:38:06,410", "module": "rec_evaluation", "level": "INFO", "message": "Loading ranked recommendations"}
+{"timestamp": "2025-12-10 00:38:06,956", "module": "rec_evaluation", "level": "INFO", "message": "Loaded/generated recommendations for 1,693 users"}
+{"timestamp": "2025-12-10 00:38:21,520", "module": "rec_evaluation", "level": "INFO", "message": "K=5: P=0.0514 R=0.0376 NDCG=0.0662"}
+{"timestamp": "2025-12-10 00:38:21,923", "module": "rec_evaluation", "level": "INFO", "message": "DONE: Saved evaluation_ranked.json to ./results"}
+{"timestamp": "2025-12-10 00:38:21,923", "module": "rec_evaluation", "level": "INFO", "message": "Comparing models"}
+{"timestamp": "2025-12-10 00:38:21,923", "module": "rec_evaluation", "level": "INFO", "message": "popularity: {'k=5': {'precision@k': 0.006420163972100931, 'recall@k': 0.0029034695598919684, 'ndcg@k': 0.0061476544867959376, 'novelty@k': 0.21414944374348424, 'diversity@k': 1.0}}"}
+{"timestamp": "2025-12-10 00:38:21,924", "module": "rec_evaluation", "level": "INFO", "message": "als: {'k=5': {'precision@k': 0.012670873493392106, 'recall@k': 0.011664156746076659, 'ndcg@k': 0.015433235489527804, 'novelty@k': 1.929883900377394, 'diversity@k': 1.0}}"}
+{"timestamp": "2025-12-10 00:38:21,924", "module": "rec_evaluation", "level": "INFO", "message": "ranked: {'k=5': {'precision@k': 0.05138806851742469, 'recall@k': 0.03758141367657036, 'ndcg@k': 0.06618538257860884, 'novelty@k': 2.2677722945296646, 'diversity@k': 1.0}}"}
+{"timestamp": "2025-12-10 00:38:21,925", "module": "rec_evaluation", "level": "INFO", "message": "DONE: Saved models_comparison.parquet to ./results/models_comparison.parquet"}

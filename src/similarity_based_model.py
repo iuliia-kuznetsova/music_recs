@@ -14,8 +14,8 @@
     - similar_tracks_index.pkl - similar tracks index for all tracks
 
     Usage:
-    python -m src.similar_based_als --all-tracks # build full index for all tracks
-    python -m src.similar_based_als --track-id 1234567890 # find similar tracks for a specific track
+    python3 -m src.similarity_based_model --all-tracks # build full index for all tracks
+    python3 -m src.similarity_based_model --track-id 1234567890 # find similar tracks for a specific track
 '''
 
 # ---------- Imports ---------- #
@@ -253,6 +253,7 @@ class ALSSimilarTracks:
         # Upload to S3
         upload_recommendations_to_s3(output_path, 'similar.parquet')
         upload_recommendations_to_s3(index_path, 'similar_tracks_index.pkl')
+        logger.info(f'Uploaded similar.parquet to S3')
         
         # Clean up checkpoint directory
         logger.info('Cleaning up checkpoint files')
@@ -279,10 +280,18 @@ def similarity_based_recommendations() -> None:
         - None
     '''
 
+    logger.info('Starting similarity-based model training and recommendations')
+
     als_model = load_als_model()
     finder = ALSSimilarTracks()
     finder.fit(als_model)
     finder.generate_similarity_recommendations()
+
+    logger.info('DONE: Similarity-based model training and recommendations completed successfully')
+
+    # Free memory
+    del als_model, finder
+    gc.collect()
 
     return None
 
@@ -294,7 +303,7 @@ if __name__ == '__main__':
     parser.add_argument('--all-tracks', action='store_true', help='Build full index for all tracks')
     args = parser.parse_args()
 
-    logger.info('Running similarity-based model pipeline')
+    logger.info('Running similarity-based model training and recommendations')
 
     # Check required environment variables
     required_env_vars = [
@@ -318,7 +327,7 @@ if __name__ == '__main__':
 
     similarity_based_recommendations()
     
-    logger.info('Similarity-based model pipeline completed')
+    logger.info('DONE: Similarity-based model training and recommendations completed successfully')
 
 # ---------- All exports ---------- #
 __all__ = ['ALSSimilarTracks', 'similarity_based_recommendations']

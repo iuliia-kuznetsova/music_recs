@@ -8,13 +8,13 @@
     - Novelty - measures how novel/unpopular the recommendations are
     - Diversity - measures variety in recommendations using track_group_id
 
-    Models: popularity, collaborative (ALS), ranked (CatBoost)
+    Models: popularity (top popular), collaborative (ALS), ranked (CatBoost)
 
     Results are saved to ./results as JSON
 
-    Usage:
-        python -m src.rec_evaluation # evaluate all models
-        python -m src.rec_evaluation --model popularity # model to evaluate: popularity, als, ranked, all
+    Usage examples:
+    python3 -m src.rec_evaluation # evaluate all models
+    python3 -m src.rec_evaluation --model popularity # model to evaluate: popularity, als, ranked, all
 '''
 
 # ---------- Imports ---------- #
@@ -302,9 +302,9 @@ def get_popular_recommendations(
     logger.info(f'Generated {len(popularity_based_rec):,} recommendation lists')
     return popularity_based_rec
 
-# ---------- Collaborative-based recommendations ---------- #
+# ---------- ALS-based recommendations ---------- #
 def get_als_recommendations(
-    model_path: str,
+    model_dir: str,
     train_matrix,
     test_events: pl.DataFrame,
     n_als: int
@@ -318,7 +318,7 @@ def get_als_recommendations(
         4. Return the recommendations
 
         Args:
-        - model_path - path to ALS model
+        - model_dir - path to ALS model directory
         - train_matrix - training matrix
         - test_events - test events dataframe
         - n - number of recommendations to return
@@ -326,10 +326,10 @@ def get_als_recommendations(
         Returns:
         - dictionary of recommendations
     '''
-    logger.info(f'Generating ALS recommendations from {model_path}')
+    logger.info(f'Generating ALS recommendations from {model_dir}')
     
     # Load model
-    als_model = load_als_model(model_path)
+    als_model = load_als_model(model_dir)
     
     # Get test users
     test_users = test_events['user_id'].unique().to_list()
@@ -465,7 +465,7 @@ def evaluate_model(
         compare_models(output_dir)
         return results
     
-    logger.info(f'Evaluating {model_name.upper()}')
+    logger.info(f'Evaluating {model_name} model')
     
     # Load data
     catalog = pl.read_parquet(f'{preprocessed_dir}/tracks_catalog_clean.parquet')
@@ -478,8 +478,7 @@ def evaluate_model(
     if model_name == 'popularity':
         recs = get_popular_recommendations(preprocessed_dir, output_dir, train_events, test_events, catalog, n_popular, n_recs_popular, method='listen_count')
     elif model_name == 'als':
-        als_model_path = os.path.join(models_dir, 'als_model.pkl')
-        recs = get_als_recommendations(als_model_path, train_matrix, test_events, n_als)
+        recs = get_als_recommendations(models_dir, train_matrix, test_events, n_als)
     elif model_name == 'ranked':
         recs = get_ranked_recommendations(preprocessed_dir, output_dir, models_dir, n_ranked, sample_users)
     else:
@@ -531,7 +530,7 @@ def evaluate_model(
     os.makedirs(output_dir, exist_ok=True)
     with open(f'{output_dir}/evaluation_{model_name}.json', 'w') as f:
         json.dump(results, f, indent=2)
-    logger.info(f'Saved to {output_dir}/evaluation_{model_name}.json')
+    logger.info(f'DONE: Saved evaluation_{model_name}.json to {output_dir}')
     
     return results
 
@@ -550,7 +549,7 @@ def compare_models(results_dir: str) -> pl.DataFrame:
     
     result_files = [
         os.path.join(results_dir, 'evaluation_popularity.json'),
-        os.path.join(results_dir, 'evaluation_collaborative.json'),
+        os.path.join(results_dir, 'evaluation_als.json'),
         os.path.join(results_dir, 'evaluation_ranked.json'),
     ]
 
@@ -582,7 +581,7 @@ def compare_models(results_dir: str) -> pl.DataFrame:
     models_comparison_path = os.path.join(results_dir, 'models_comparison.parquet')
     os.makedirs(os.path.dirname(models_comparison_path), exist_ok=True)
     models_comparison.write_parquet(models_comparison_path)
-    logger.info(f'Saved comparison to {models_comparison_path}')
+    logger.info(f'DONE: Saved models_comparison.parquet to {models_comparison_path}')
     
     return models_comparison   
 
@@ -592,7 +591,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', choices=['popularity', 'als', 'ranked', 'all'], default='all')
     args = parser.parse_args()
     
-    logger.info('Running recommendation models evaluation pipeline')
+    logger.info('Running recommendation models evaluation')
 
     # Check required environment variables
     required_env_vars = [
@@ -604,7 +603,6 @@ if __name__ == '__main__':
         'POPULARITY_N_RECS',
         'POPULARITY_WITH_METADATA',
         'POPULARITY_FILTER_LISTENED',
-        'POPULARITY_USER_ID',
         'ALS_N_RECS',
         'ALS_NUM_THREADS',
         'ALS_FACTORS',
@@ -630,7 +628,6 @@ if __name__ == '__main__':
     n_recs_popular = int(os.getenv('POPULARITY_N_RECS'))
     with_metadata_popular = bool(os.getenv('POPULARITY_WITH_METADATA'))
     filter_listened_popular = bool(os.getenv('POPULARITY_FILTER_LISTENED'))
-    user_id_popular = int(os.getenv('POPULARITY_USER_ID'))
     factors = int(os.getenv('ALS_FACTORS'))
     regularization = float(os.getenv('ALS_REGULARIZATION'))
     iterations = int(os.getenv('ALS_ITERATIONS'))
@@ -650,4 +647,4 @@ if __name__ == '__main__':
         compare_models(results_dir)
     
     gc.collect()
-    logger.info('Recommendation models evaluation pipeline completed')
+    logger.info('DONE: Recommendation models evaluation completed successfully')

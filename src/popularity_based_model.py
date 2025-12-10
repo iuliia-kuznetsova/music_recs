@@ -17,13 +17,13 @@
     - popularity_track_scores.parquet - popularity scores for all tracks
 
     Usage examples:
-    python -m src.popularity_based_rec # generate top N popularity-based recommendations
-    python -m src.popularity_based_rec --user-id 1234567890 # get recommendations for a specific user ID
-    python -m src.popularity_based_rec --n 100 # number of top popular tracks to return (default: 100)
-    python -m src.popularity_based_rec--n-recs 10 # number of recommendations to return for each user (default: 10)
-    python -m src.popularity_based_rec--method listen_count # method to compute track popularity (listen_count, user_count, avg_listens)
-    python -m src.popularity_based_rec--with-metadata True # whether to add metadata to the top popular tracks (default: True)
-    python -m src.popularity_based_rec--filter-listened True # whether to filter out tracks the user has already listened to (default: True)
+    python3 -m src.popularity_based_rec # generate top N popularity-based recommendations
+    python3 -m src.popularity_based_rec --user-id 1234567890 # get recommendations for a specific user ID
+    python3 -m src.popularity_based_rec --n 100 # number of top popular tracks to return (default: 100)
+    python3 -m src.popularity_based_rec--n-recs 10 # number of recommendations to return for each user (default: 10)
+    python3 -m src.popularity_based_rec--method listen_count # method to compute track popularity (listen_count, user_count, avg_listens)
+    python3 -m src.popularity_based_rec--with-metadata True # whether to add metadata to the top popular tracks (default: True)
+    python3 -m src.popularity_based_rec--filter-listened True # whether to filter out tracks the user has already listened to (default: True)
 '''
 
 # ---------- Imports ---------- #
@@ -148,7 +148,7 @@ class PopularityRecommender:
                 .select(['track_id', 'popularity_score'])
         )
         
-        logger.info(f'Computed popularity for {popularity_track_scores.height:,} tracks')
+        logger.info(f'DONE: Computed popularity for {popularity_track_scores.height:,} tracks')
         logger.info(f'Top track score: {popularity_track_scores["popularity_score"][0]:.2f}')
 
         # Save locally
@@ -190,7 +190,7 @@ class PopularityRecommender:
 
         # Upload to S3
         upload_recommendations_to_s3(top_popular_path, 'top_popular.parquet')
-        logger.info(f'Uploaded {self.top_tracks.height:,} popularity recommendations to S3')
+        logger.info(f'Uploaded top_popular.parquet to S3')
 
         # Free up memory
         del popularity_track_scores
@@ -253,12 +253,15 @@ class PopularityRecommender:
         
         return recommendations['track_id'].to_list()
 
-def generate_popularity_recommendations(
+# ---------- Wrapper function for popularity-based recommendations---------- #
+def popularity_based_recommendations(
     preprocessed_dir: str = None, 
-    n: int = None
-) -> List[int]:
+    n: int = None,
+    method: str = None,
+    with_metadata: bool = None
+) -> None:
     '''
-        Load top N popular track ids or compute from scratch.
+        Generate popularity-based recommendations for all users.
         
         Args:
         - preprocessed_dir - path to preprocessed data directory (optional, uses env var if not provided)
@@ -273,28 +276,23 @@ def generate_popularity_recommendations(
         preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
     if n is None:
         n = int(os.getenv('POPULARITY_TOP_N', 100))
+    if method is None:
+        method = os.getenv('POPULARITY_METHOD', 'listen_count')
+    if with_metadata is None:
+        with_metadata = os.getenv('POPULARITY_WITH_METADATA', True)
+    
+    logger.info('Starting popularity-based model training and recommendations')
+    logger.info(f'Computing top {n} popularity recommendations')
 
-    results_dir = os.getenv('RESULTS_DIR', './results')
-    popularity_path = os.path.join(results_dir, 'top_popular.parquet')
-    
-    # Load popularity recommendations if exist
-    if os.path.exists(popularity_path):
-        logger.info(f'Loading cached popularity recommendations from {popularity_path}')
-        popular_tracks = pl.read_parquet(popularity_path)
-        return popular_tracks['track_id'].head(n).to_list()
-    
-    # Otherwise compute from scratch
-    if preprocessed_dir is None:
-        preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', 'data/preprocessed')
-    
-    logger.info(f'No cached file found, computing top {n} popularity recommendations')
-    method = os.getenv('POPULARITY_METHOD', 'listen_count')
-    with_metadata = os.getenv('POPULARITY_WITH_METADATA', 'True').lower() == 'true'
-    
     recommender = PopularityRecommender()
     recommender.fit(preprocessed_dir=preprocessed_dir, method=method, with_metadata=with_metadata, n=n)
     
-    return recommender.top_tracks['track_id'].head(n).to_list()
+    # Free memory
+    del recommender
+    gc.collect()
+
+    logger.info('DONE: Popularity-based model training and recommendations completed successfully')
+    return None
 
 # ---------- Main entry point ---------- #
 if __name__ == '__main__':
@@ -309,7 +307,7 @@ if __name__ == '__main__':
     parser.add_argument('--with-metadata', action='store_true', default=False, help='Add metadata to the top popular tracks')
     args = parser.parse_args()
 
-    logger.info('Running popularity-based model training pipeline')
+    logger.info('Running popularity-based model training and recommendations')
 
     # Check required environment variables
     required_env_vars = [
@@ -363,8 +361,8 @@ if __name__ == '__main__':
         )
         logger.info(f'Saved top {n} popular tracks')
 
-    logger.info('Popularity-based model training pipeline completed')
+    logger.info('DONE: Popularity-based model training and recommendations completed successfully')
 
 # ---------- All exports ---------- #
-__all__ = ['PopularityRecommender', 'generate_popularity_recommendations']
+__all__ = ['PopularityRecommender', 'popularity_based_recommendations']
 

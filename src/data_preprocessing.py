@@ -469,7 +469,7 @@ def build_events_df(raw_dir: str, preprocessed_dir: str):
     
     # Load valid track ids from already-created catalog
     valid_tracks = pl.scan_parquet(f'{preprocessed_dir}/tracks_catalog_clean.parquet').select('track_id')
-    logger.info('Loaded valid track IDs from catalog')
+    logger.info('Loaded valid track ids from catalog')
     
     # Build events with semi-join to ensure all tracks exist in catalog
     # Note: No ID mapping needed here - tracks_catalog already has canonical IDs
@@ -652,7 +652,7 @@ def run_preprocessing(raw_dir: str=None, preprocessed_dir: str=None):
     upload_data_to_s3(f'{preprocessed_dir}/items.parquet', 'items.parquet')
     upload_data_to_s3(f'{preprocessed_dir}/events.parquet', 'events.parquet')
     
-    logger.info('Succesfully done with data preprocessing')
+    logger.info('Data preprocessing completed successfully')
     
     return None
 
@@ -712,7 +712,7 @@ if __name__ == '__main__':
         logger.info('Running full preprocessing pipeline')
         run_preprocessing(raw_dir, preprocessed_dir)
 
-    logger.info('Data preprocessing pipeline completed')
+    logger.info('Data preprocessing completed successfully')
 
 # ---------- All exports ---------- #
 __all__ = ['run_preprocessing']
