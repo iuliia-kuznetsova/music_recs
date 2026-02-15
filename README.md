@@ -345,4 +345,4 @@ The solution performance can be futher improved by:
 
 ## Author
 **Iuliia Kuznetsova**
-February 2026
+October 2025

@@ -1,0 +1,16 @@
+Personalized Music Recommendation System
+
+Developed an end-to-end machine learning system to build personalized music recommendations for users of a music streaming platform.
+The project addresses a core engagement challenge in music streaming, where relevant and diverse recommendations directly drive user retention and listening time.
+
+Based on anonymized streaming interaction data of 1.4 million users and 1 million tracks I've built a multi-stage recommendation pipeline combining Popularity baseline, ALS Collaborative Filtering, and CatBoost re-ranking, achieving 0.0158 Precision@5 and 0.0190 NDCG@5, that
+demonstrated a 2.5× precision improvement and 3.1× ranking quality improvement over the popularity baseline, with 1.59 Novelty@5 ensuring discovery of less obvious tracks.
+Music recommendations are served in real time via a FastAPI microservices architecture.
+
+Tech stack: Python, Polars, Pandas, Implicit (ALS), CatBoost, Scikit-learn, SciPy, FastAPI, Uvicorn, boto3
+Approach: 
+- comprehensive data preprocessing (text normalization, entity deduplication, track grouping), 
+- chronological train/test data split, 
+- multi-model pipeline (Popularity → ALS Collaborative Filtering → CatBoost ranking with custom features), 
+- model evaluation, 
+- microservice deployment (offline recs, online similarity recs, events service, blended final recs).
