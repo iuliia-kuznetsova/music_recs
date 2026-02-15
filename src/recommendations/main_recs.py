@@ -53,7 +53,8 @@ def main():
     logger.info('STEP 1: Loading environment variables')
     print('='*80)
     
-    load_dotenv()
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    load_dotenv(os.path.join(project_root, '.env'))
 
     raw_dir = os.getenv('RAW_DATA_DIR', './data/raw')
     preprocessed_dir = os.getenv('PREPROCESSED_DATA_DIR', './data/preprocessed')

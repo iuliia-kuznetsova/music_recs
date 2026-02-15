@@ -42,9 +42,9 @@ from dotenv import load_dotenv
 from src.logging_setup import setup_logging
 
 # ---------- Load environment variables ---------- #
-# Load from config/.env (relative to project root)
-config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'config')
-load_dotenv(os.path.join(config_dir, '.env'))
+# Load .env from project root
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(os.path.join(project_root, '.env'))
 
 # ---------- Logging setup ---------- #
 logger = setup_logging('train_test_split')

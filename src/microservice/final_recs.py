@@ -16,8 +16,8 @@ from requests.exceptions import ConnectionError
 from fastapi import FastAPI
 
 # ---------- Load environment variables ---------- #
-config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'config')
-load_dotenv(os.path.join(config_dir, '.env'))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(os.path.join(project_root, '.env'))
 
 offline_recs_service_url= os.getenv('OFFLINE_RECS_SERVICE_URL')
 events_service_url = os.getenv('EVENTS_SERVICE_URL')

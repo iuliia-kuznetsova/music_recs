@@ -17,8 +17,8 @@ import polars as pl
 from fastapi import FastAPI, Request
 
 # ---------- Load environment variables ---------- #
-config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'config')
-load_dotenv(os.path.join(config_dir, '.env'))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(os.path.join(project_root, '.env'))
 
 online_recs_path = os.getenv('ONLINE_RECS_PATH')
 

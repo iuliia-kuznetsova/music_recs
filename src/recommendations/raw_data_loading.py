@@ -23,7 +23,7 @@ logger = setup_logging('raw_data_loading')
 # ---------- Load environment variables ---------- #
 def load_env_with_logging():
     '''
-        Load .env file from config/ directory and log status info
+        Load .env file from project root and log status info
 
         Args:
         - None
@@ -31,9 +31,9 @@ def load_env_with_logging():
         Returns:
         - True if the environment variables were loaded successfully, False otherwise
     '''
-    # Load from config/.env (relative to project root)
-    config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'config')
-    env_path = os.path.join(config_dir, '.env')
+    # Load .env from project root
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    env_path = os.path.join(project_root, '.env')
     required_vars = [
         'RAW_DATA_DIR',
         'RAW_URL_TRACKS',

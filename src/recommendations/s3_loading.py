@@ -24,8 +24,8 @@ from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
 # ---------- Load environment variables ---------- #
-config_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'config')
-load_dotenv(os.path.join(config_dir, '.env'))
+project_root = os.path.join(os.path.dirname(__file__), '..', '..')
+load_dotenv(os.path.join(project_root, '.env'))
 
 class Config:
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')

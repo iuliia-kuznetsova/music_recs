@@ -21,9 +21,9 @@ import polars as pl
 from scipy.sparse import load_npz, csr_matrix
 from dotenv import load_dotenv
 
-# Load environment variables from config/.env
-config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'config')
-load_dotenv(os.path.join(config_dir, '.env'))
+# Load .env from project root
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(os.path.join(project_root, '.env'))
 
 
 def load_encoders(models_dir: str = None) -> Dict[str, Dict[int, int]]:

@@ -25,8 +25,8 @@ from src.logging_setup import setup_logging
 logger = setup_logging('main_services')
 
 # ---------- Load environment variables ---------- #
-config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'config')
-load_dotenv(os.path.join(config_dir, '.env'))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(os.path.join(project_root, '.env'))
 
 main_app_port = int(os.getenv('MAIN_APP_PORT', 8000))
 offline_recs_service_port = int(os.getenv('OFFLINE_RECS_SERVICE_PORT', 8001))

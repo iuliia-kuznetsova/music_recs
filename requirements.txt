@@ -1,4 +1,4 @@
-# mle_projects/mle-project-sprint-4-v001/requirements.txt
+# Music Recommendations System - Dependencies
 
 python-dotenv==1.2.1
 requests==2.31.0
