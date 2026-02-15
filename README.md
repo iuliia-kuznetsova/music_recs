@@ -144,8 +144,10 @@ The dataset contains anonymized music streaming data of 1.4 million users and 1 
 
 ### Download Links
 Raw data is downloaded automatically from S3 during pipeline execution. 
-Alternatively, data can be downloaded from the following sources and should be placed into `./data` directory:
-- [data.csv](https://drive.google.com/file/d/1Uc2WbhW9U5-TtLr8X82QQxk36J9CMNCu/view?usp=sharing)
+Alternatively, data can be downloaded from the following sources and should be placed into `./data/raw` directory:
+- [interactions.parquet](https://drive.google.com/file/d/1vIerwUcgjaJgYPZKFxJ_Ff3Es2vFzgXz/view?usp=sharing)
+- [tracks.parquet](https://drive.google.com/file/d/15vN5KV3AAKDqXWOd95F-P3UeLIkABWQ3/view?usp=sharing)
+- [catalog_names.parquet](https://drive.google.com/file/d/1Xr22KrkhXrsYdaLeKJ43mQXCo19oNc6p/view?usp=sharing)
 
 
 ### Dataset Descriptions
